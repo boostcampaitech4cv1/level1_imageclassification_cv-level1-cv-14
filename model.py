@@ -97,7 +97,13 @@ class EfficientB4(nn.Module):
         self.efficient = efficientnet_b4(pretrained=True)
         for param in self.efficient.parameters():
             param.requires_grad = False
-        self.efficient.classifier[1] = nn.Linear(in_features=1792, out_features=self.num_classes, bias=True)
+            
+        self.efficient.classifier = nn.Sequential(
+            nn.Linear(1792, 1792),
+            nn.LeakyReLU(),
+            nn.Dropout1d(0.4),
+            nn.Linear(1792, self.num_classes),
+        )
 
     def forward(self, x):
         out = self.efficient(x)
@@ -111,7 +117,12 @@ class EfficientB7(nn.Module):
         self.efficient = efficientnet_b7(pretrained=True)
         for param in self.efficient.parameters():
             param.requires_grad = False
-        self.efficient.classifier[1] = nn.Linear(in_features=2560, out_features=self.num_classes, bias=True)
+        self.efficient.classifier = nn.Sequential(
+            nn.Linear(2560, 2560),
+            nn.LeakyReLU(),
+            nn.Dropout1d(0.4),
+            nn.Linear(2560, self.num_classes),
+        )
 
     def forward(self, x):
         out = self.efficient(x)
