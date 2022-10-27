@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import clip
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
+from torchvision.models import efficientnet_b4, efficientnet_b7
 
 
 class BaseModel(nn.Module):
@@ -87,3 +88,19 @@ class CustomClipLinear(nn.Module): # 쓰레기
         x_ = self._get_cosine_score(x)
         out = self.net(x_)
         return out
+
+
+class EfficientB7(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficient = efficientnet_b7(pretrained=True)
+        for param in self.efficient.parameters():
+            param.requires_grad = False
+        self.efficient.classifier[1] = nn.Linear(in_features=2560, out_features=self.num_classes, bias=True)
+
+    def forward(self, x):
+        out = self.efficient(x)
+        return out
+    
+# 512 384
