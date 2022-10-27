@@ -55,8 +55,12 @@ class CustomClipLinear(nn.Module): # 쓰레기
             # Resize((224, 224)), # 필요하면
             Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
         ])
-        self.linear = nn.Linear(len(self.features), self.num_classes)
-        self.softmax = nn.Softmax()
+        self.net = nn.Sequential(
+            nn.Linear(len(self.features), 196),
+            nn.BatchNorm1d(196),
+            nn.LeakyReLU(0.05),
+            nn.Linear(196, self.num_classes),
+        )
 
 
     def set_features(self, features):
@@ -81,6 +85,5 @@ class CustomClipLinear(nn.Module): # 쓰레기
         2. 결과로 나온 output 을 return 해주세요
         """
         x_ = self._get_cosine_score(x)
-        x_ = self.linear(x_)
-        out = self.softmax(x_)
+        out = self.net(x_)
         return out
