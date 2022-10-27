@@ -90,6 +90,20 @@ class CustomClipLinear(nn.Module): # 쓰레기
         return out
 
 
+class EfficientB4(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficient = efficientnet_b4(pretrained=True)
+        for param in self.efficient.parameters():
+            param.requires_grad = False
+        self.efficient.classifier[1] = nn.Linear(in_features=1792, out_features=self.num_classes, bias=True)
+
+    def forward(self, x):
+        out = self.efficient(x)
+        return out
+
+
 class EfficientB7(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
