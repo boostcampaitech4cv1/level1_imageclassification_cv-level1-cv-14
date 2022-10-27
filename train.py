@@ -18,6 +18,11 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset import MaskBaseDataset
 from loss import create_criterion
 
+import platform
+
+Is_Windows = False
+if 'Windows' == platform.system():
+     Is_Windows = True
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -83,6 +88,7 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
+    
     seed_everything(args.seed)
 
     save_dir = increment_path(os.path.join(model_dir, args.name))
@@ -113,7 +119,7 @@ def train(data_dir, model_dir, args):
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
+        num_workers=multiprocessing.cpu_count() // 2 if not Is_Windows else 0,
         shuffle=True,
         pin_memory=use_cuda,
         drop_last=True,
@@ -122,7 +128,7 @@ def train(data_dir, model_dir, args):
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
+        num_workers=multiprocessing.cpu_count() // 2 if not Is_Windows else 0,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=True,
@@ -260,7 +266,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
-
+    
     data_dir = args.data_dir
     model_dir = args.model_dir
 

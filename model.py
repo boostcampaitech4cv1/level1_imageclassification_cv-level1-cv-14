@@ -47,7 +47,9 @@ class CustomClipLinear(nn.Module): # 쓰레기
         2. 나만의 모델 아키텍쳐를 디자인 해봅니다.
         3. 모델의 output_dimension 은 num_classes 로 설정해주세요.
         """
-        self.features = ["mask", "face", "nose", "cheek", "mouth", "chin", 'lips', "male", "man", "female", "woman", "under 30", "over 30 and under 60", "over 60"]
+        self.feature_mask = ["Temple", "Eye", "Ear", "Mouth", "Chin", "Cheek", "Eyebrow", "Forehead", "Hair"]
+        self.feature_gender = ["Male", "Man", "Female", "Woman"]
+        self.feature_age = ["under 30", "over 30 and under 60", "over 60", "Youth", "Middle-age", "Old-age"]
         self.num_classes = num_classes
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
@@ -55,22 +57,38 @@ class CustomClipLinear(nn.Module): # 쓰레기
             # Resize((224, 224)), # 필요하면
             Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
         ])
-        self.net = nn.Sequential(
-            nn.Linear(len(self.features), 196),
-            nn.BatchNorm1d(196),
-            nn.LeakyReLU(0.05),
-            nn.Linear(196, self.num_classes),
+        self.net_mask = nn.Sequential(
+            nn.Linear(len(self.feature_mask), 81),
+            nn.BatchNorm1d(81),
+            nn.LeakyReLU(0.05)
         )
 
+        self.net_gender = nn.Sequential(
+            nn.Linear(len(self.feature_gender), 16),
+            nn.BatchNorm1d(16),
+            nn.LeakyReLU(0.05)
+        )
+        
+        self.net_age = nn.Sequential(
+            nn.Linear(len(self.feature_age), 36),
+            nn.BatchNorm1d(36),
+            nn.LeakyReLU(0.05)
+        )
 
-    def set_features(self, features):
-        self.features = features
-        self.linear = nn.Linear(len(self.features), self.num_classes)
+        self.net_total = nn.Sequential(
+            nn.Linear(133, 58),
+            nn.BatchNorm1d(58),
+            nn.LeakyReLU(0.05),
+            nn.Linear(58, 18)
+        )
+    #def set_features(self, features):
+    #    self.features = features
+    #    self.linear = nn.Linear(len(self.features), self.num_classes)
 
-    def _get_cosine_score(self, imgs):
+    def _get_cosine_score(self, imgs, features):
         # GPU 메모리 약 1.5 GB 필요 --> 만일 부족하다면 clip.available_models() 명령어를 통해 가지고 오는 모델을 바꿀 수 있습니다
         imgs = self.transform(imgs)
-        text = clip.tokenize(self.features).to(self.device)
+        text = clip.tokenize(features).to(self.device)
         with torch.no_grad():
             # 모델에 image와 text 둘 다 input으로 넣고, 각 text와 image와의 유사도를 구합니다. 값이 클수록 유사합니다.
             logits_per_image, _ = self.clip_model(imgs, text) # RGB (ex : (1, 3, 244, 244))
@@ -78,12 +96,20 @@ class CustomClipLinear(nn.Module): # 쓰레기
             probs = logits_per_image.softmax(dim=-1)
         
         return probs.float()
+    
+    
 
     def forward(self, x):
         """
         1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
         2. 결과로 나온 output 을 return 해주세요
         """
-        x_ = self._get_cosine_score(x)
-        out = self.net(x_)
+        x_mask = self._get_cosine_score(x, self.feature_mask)
+        x_mask = self.net_mask(x_mask)
+        x_gender = self._get_cosine_score(x, self.feature_gender)
+        x_gender = self.net_gender(x_gender)
+        x_age = self._get_cosine_score(x, self.feature_age)
+        x_age = self.net_age(x_age)
+        x_ = torch.concat([x_mask, x_gender, x_age], dim = -1)
+        out = self.net_total(x_)
         return out
