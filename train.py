@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import random
 import re
+import platform
 from importlib import import_module
 from pathlib import Path
 from collections import Counter
@@ -20,6 +21,11 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset import MaskBaseDataset
 from loss import create_criterion
 
+
+
+Is_Windows = False
+if 'Windows' == platform.system():
+     Is_Windows = True
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -130,12 +136,15 @@ def train(data_dir, model_dir, args):
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
     
+    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else 0
+    
     if args.sampler == "WeightedRandomSampler":
         sampler = get_weighted_sampler(train_set)
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
+            
+            num_workers=t_num_workers,
             sampler=sampler,
             pin_memory=use_cuda,
             drop_last=True,
@@ -144,7 +153,7 @@ def train(data_dir, model_dir, args):
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
+            num_workers=t_num_workers,
             shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -153,7 +162,7 @@ def train(data_dir, model_dir, args):
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
+        num_workers=t_num_workers,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=True,
