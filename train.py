@@ -274,7 +274,8 @@ def train(data_dir, model_dir, args):
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
                 counter = 0
             else:
-                counter += 1
+                counter+=1
+                print(f"No improving count : {counter}")
             
             if counter > patience :
                 print("Early stopping")
@@ -313,7 +314,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
-    parser.add_argument('--patience', type=int, default=10, help='setting early stopping')
+    parser.add_argument('--patience', type=int, default=6, help='setting early stopping')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
