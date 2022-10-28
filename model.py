@@ -198,3 +198,18 @@ class MyVitSAM(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
+
+
+class MyVit384(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch16_384"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
