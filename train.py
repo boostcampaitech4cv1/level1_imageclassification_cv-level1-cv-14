@@ -5,19 +5,27 @@ import multiprocessing
 import os
 import random
 import re
+import platform
 from importlib import import_module
 from pathlib import Path
+from collections import Counter
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
 
+
+
+Is_Windows = False
+if 'Windows' == platform.system():
+     Is_Windows = True
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -80,6 +88,24 @@ def increment_path(path, exist_ok=False):
         i = [int(m.groups()[0]) for m in matches if m]
         n = max(i) + 1 if i else 2
         return f"{path}{n}"
+    
+def get_subset_labels(subset):
+    labels = []
+    print("Extract labels from train_set")
+    for i in tqdm(range(len(subset))):
+        _, label = subset[i]
+        labels.append(label)
+    return labels
+    
+def get_weighted_sampler(train_set):
+    y_train = get_subset_labels(train_set)
+    counter = Counter(y_train)
+    class_count=np.array([counter[i] for i in range(18)])
+    weight=1./class_count
+    samples_weight = np.array([weight[t] for t in y_train])
+    samples_weight = torch.from_numpy(samples_weight)
+    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
+    return sampler
 
 
 def train(data_dir, model_dir, args):
@@ -109,20 +135,34 @@ def train(data_dir, model_dir, args):
 
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
-
-    train_loader = DataLoader(
-        train_set,
-        batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
-        shuffle=True,
-        pin_memory=use_cuda,
-        drop_last=True,
-    )
+    
+    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else 0
+    
+    if args.sampler == "WeightedRandomSampler":
+        sampler = get_weighted_sampler(train_set)
+        train_loader = DataLoader(
+            train_set,
+            batch_size=args.batch_size,
+            
+            num_workers=t_num_workers,
+            sampler=sampler,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+    else:
+        train_loader = DataLoader(
+            train_set,
+            batch_size=args.batch_size,
+            num_workers=t_num_workers,
+            shuffle=True,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
 
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
+        num_workers=t_num_workers,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=True,
@@ -245,6 +285,7 @@ if __name__ == '__main__':
     parser.add_argument("--resize", nargs="+", type=int, default=[128, 96], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--sampler', type=str, default=None)
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')

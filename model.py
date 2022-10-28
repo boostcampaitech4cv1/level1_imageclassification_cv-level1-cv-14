@@ -1,5 +1,15 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import clip
+from torch.nn import CosineSimilarity as CosSim
+from torchvision.transforms import Resize, Normalize, Compose
+from torchvision.models import efficientnet_b4, efficientnet_b7
+
+from vit_pytorch import ViT
+from vit_pytorch.extractor import Extractor
+
+from timm import create_model
 
 
 class BaseModel(nn.Module):
@@ -34,7 +44,7 @@ class BaseModel(nn.Module):
 
 
 # Custom Model Template
-class MyModel(nn.Module):
+class CustomClipLinear(nn.Module): # 쓰레기
     def __init__(self, num_classes):
         super().__init__()
 
@@ -43,10 +53,144 @@ class MyModel(nn.Module):
         2. 나만의 모델 아키텍쳐를 디자인 해봅니다.
         3. 모델의 output_dimension 은 num_classes 로 설정해주세요.
         """
+        self.features = ["mask", "face", "nose", "cheek", "mouth", "chin", 'lips', "male", "man", "female", "woman", "under 30", "over 30 and under 60", "over 60"]
+        self.num_classes = num_classes
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
+        self.transform = Compose([
+            # Resize((224, 224)), # 필요하면
+            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+        ])
+        self.net = nn.Sequential(
+            nn.Linear(len(self.features), 196),
+            nn.BatchNorm1d(196),
+            nn.LeakyReLU(0.05),
+            nn.Linear(196, self.num_classes),
+        )
+
+
+    def set_features(self, features):
+        self.features = features
+        self.linear = nn.Linear(len(self.features), self.num_classes)
+
+    def _get_cosine_score(self, imgs):
+        # GPU 메모리 약 1.5 GB 필요 --> 만일 부족하다면 clip.available_models() 명령어를 통해 가지고 오는 모델을 바꿀 수 있습니다
+        imgs = self.transform(imgs)
+        text = clip.tokenize(self.features).to(self.device)
+        with torch.no_grad():
+            # 모델에 image와 text 둘 다 input으로 넣고, 각 text와 image와의 유사도를 구합니다. 값이 클수록 유사합니다.
+            logits_per_image, _ = self.clip_model(imgs, text) # RGB (ex : (1, 3, 244, 244))
+            # 확률값으로 표현하기 위해 softmax 값을 구합니다.
+            probs = logits_per_image.softmax(dim=-1)
+        
+        return probs.float()
 
     def forward(self, x):
         """
         1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
         2. 결과로 나온 output 을 return 해주세요
         """
-        return x
+        x_ = self._get_cosine_score(x)
+        out = self.net(x_)
+        return out
+
+
+class EfficientB4(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficient = efficientnet_b4(pretrained=True)
+        for param in self.efficient.parameters():
+            param.requires_grad = False
+        self.efficient.classifier[1] = nn.Linear(1792, self.num_classes)
+        # self.efficient.classifier = nn.Sequential(
+        #     nn.Linear(1792, 1792),
+        #     nn.LeakyReLU(),
+        #     nn.Dropout1d(0.4),
+        #     nn.Linear(1792, self.num_classes),
+        # )
+
+    def forward(self, x):
+        out = self.efficient(x)
+        return out
+
+
+class EfficientB7(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficient = efficientnet_b7(pretrained=True)
+        for param in self.efficient.parameters():
+            param.requires_grad = False
+        self.efficient.classifier[1] = nn.Linear(2560, self.num_classes)
+        # self.efficient.classifier = nn.Sequential(
+        #     nn.Linear(2560, 2560),
+        #     nn.LeakyReLU(),
+        #     nn.Dropout1d(0.4),
+        #     nn.Linear(2560, self.num_classes),
+        # )
+
+    def forward(self, x):
+        out = self.efficient(x)
+        return out
+    
+class MyVit(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        vit = ViT(
+            image_size = 128*128,
+            patch_size = 32,
+            num_classes = 1000,
+            dim = 1024,
+            depth = 6,
+            heads = 16,
+            mlp_dim = 2048
+        )
+        self.vit = Extractor(vit, return_embeddings_only = True, detach = False)
+        self.net = nn.Sequential(
+            nn.Linear(17408, self.num_classes),
+            # nn.BatchNorm1d(1024),
+            # nn.LeakyReLU(0.05),
+            # nn.Dropout(0.4),
+            # nn.Linear(1024, 512),
+            # nn.BatchNorm1d(512),
+            # nn.LeakyReLU(0.05),
+            # nn.Dropout(0.4),
+            # nn.Linear(1024, self.num_classes),
+            # nn.Softmax(dim = -1),
+        )
+        
+    def forward(self,x):
+        x_ = self.vit(x)
+        x_ = torch.flatten(x_, start_dim = 1)
+        out = self.net(x_)
+        return out
+    
+
+class MyVit2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch16_224"
+        # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        # net = nn.Sequential(
+        #     nn.Linear(input_f,int(input_f/2),bias=True),
+        #     nn.ReLU(),
+        #     nn.Dropout(),
+        #     nn.Linear(int(input_f/2),int(input_f/2/2),bias=True),
+        #     nn.ReLU(),
+        #     nn.Dropout(),
+        #     nn.Linear(int(input_f/2/2),output_f,bias=True)
+        #     #nn.Softmax(dim=-1)
+        # )
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
+        
