@@ -172,7 +172,7 @@ class MyVit2(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        model_name = "vit_base_patch16_224"
+        model_name = "vit_base_patch16_384"
         # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
         self.vit = create_model(model_name, pretrained=True)
         for param in self.vit.parameters():

@@ -136,7 +136,7 @@ def train(data_dir, model_dir, args):
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
     
-    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else 0
+    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else 12
     
     if args.sampler == "WeightedRandomSampler":
         sampler = get_weighted_sampler(train_set)

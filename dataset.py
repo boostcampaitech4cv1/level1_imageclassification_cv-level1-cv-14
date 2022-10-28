@@ -204,7 +204,6 @@ class MaskBaseDataset(Dataset):
         image_path = self.image_paths[index]
         img = Image.open(image_path)
         img = remove(img).convert("RGB")
-        print("background removed")
         return img
 
     @staticmethod
