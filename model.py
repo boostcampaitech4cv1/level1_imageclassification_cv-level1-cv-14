@@ -7,6 +7,7 @@ from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
 from vit_pytorch import ViT
+from vit_pytorch.max_vit import MaxViT
 from vit_pytorch.extractor import Extractor
 
 from timm import create_model
@@ -138,33 +139,20 @@ class MyVit(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        vit = ViT(
-            image_size = 128*128,
+        self.vit = ViT(
+            image_size = 256,
             patch_size = 32,
             num_classes = 1000,
             dim = 1024,
             depth = 6,
             heads = 16,
-            mlp_dim = 2048
-        )
-        self.vit = Extractor(vit, return_embeddings_only = True, detach = False)
-        self.net = nn.Sequential(
-            nn.Linear(17408, self.num_classes),
-            # nn.BatchNorm1d(1024),
-            # nn.LeakyReLU(0.05),
-            # nn.Dropout(0.4),
-            # nn.Linear(1024, 512),
-            # nn.BatchNorm1d(512),
-            # nn.LeakyReLU(0.05),
-            # nn.Dropout(0.4),
-            # nn.Linear(1024, self.num_classes),
-            # nn.Softmax(dim = -1),
+            mlp_dim = 2048,
+            dropout = 0.1,
+            emb_dropout = 0.1
         )
         
     def forward(self,x):
-        x_ = self.vit(x)
-        x_ = torch.flatten(x_, start_dim = 1)
-        out = self.net(x_)
+        out = self.vit(x)
         return out
     
 
@@ -182,8 +170,45 @@ class MyVit2(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
+    
+    
+class MaxVit(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.maxvit = MaxViT(
+            num_classes = self.num_classes,
+            dim_conv_stem = 64,               # dimension of the convolutional stem, would default to dimension of first layer if not specified
+            dim = 96,                         # dimension of first layer, doubles every layer
+            dim_head = 32,                    # dimension of attention heads, kept at 32 in paper
+            depth = (2, 2, 5, 2),             # number of MaxViT blocks per stage, which consists of MBConv, block-like attention, grid-like attention
+            window_size = 7,                  # window size for block and grids
+            mbconv_expansion_rate = 4,        # expansion rate of MBConv
+            mbconv_shrinkage_rate = 0.25,     # shrinkage rate of squeeze-excitation in MBConv
+            dropout = 0.1                     # dropout
+        )
+        
+    def forward(self,x): # (n, 3, 244, 244)
+        out = self.maxvit(x)
+        return out
         
         
+class SwinV2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_relpos_base_patch16_clsgap_224"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
+    
+    
 class MyVitSAM(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -213,3 +238,17 @@ class MyVit384(nn.Module):
 
     def forward(self,x):
         out = self.vit(x)
+        
+
+class EfficientNetV2L(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficientnet_v2_l = torch.hub.load('hankyul2/EfficientNetV2-pytorch', 'efficientnet_v2_l', pretrained=True, nclass=self.num_classes)
+        for param in self.efficientnet_v2_l.parameters():
+            param.requires_grad = False
+        self.efficientnet_v2_l.head.classifier = nn.Linear(in_features=1280, out_features=self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.efficientnet_v2_l(x)
+        return out
