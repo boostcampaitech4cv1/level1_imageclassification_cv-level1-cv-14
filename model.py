@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#import clip
+import clip
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
-#from vit_pytorch import ViT
-#from vit_pytorch.extractor import Extractor
+from vit_pytorch import ViT
+from vit_pytorch.extractor import Extractor
 
 from timm import create_model
 
@@ -183,4 +183,18 @@ class MyVit2(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
-        
+    
+class MyVit384(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch16_384"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
