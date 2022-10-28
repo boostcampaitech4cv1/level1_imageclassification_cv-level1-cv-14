@@ -272,8 +272,9 @@ def train(data_dir, model_dir, args):
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+                counter = 0
             else:
-                counter+=1
+                counter += 1
             
             if counter > patience :
                 print("Early stopping")

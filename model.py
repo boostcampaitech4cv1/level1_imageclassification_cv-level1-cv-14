@@ -170,29 +170,23 @@ class MyVit2(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
-    
-    
+        
+        
 class MaxVit(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        self.maxvit = MaxViT(
-            num_classes = self.num_classes,
-            dim_conv_stem = 64,               # dimension of the convolutional stem, would default to dimension of first layer if not specified
-            dim = 96,                         # dimension of first layer, doubles every layer
-            dim_head = 32,                    # dimension of attention heads, kept at 32 in paper
-            depth = (2, 2, 5, 2),             # number of MaxViT blocks per stage, which consists of MBConv, block-like attention, grid-like attention
-            window_size = 7,                  # window size for block and grids
-            mbconv_expansion_rate = 4,        # expansion rate of MBConv
-            mbconv_shrinkage_rate = 0.25,     # shrinkage rate of squeeze-excitation in MBConv
-            dropout = 0.1                     # dropout
-        )
-        
-    def forward(self,x): # (n, 3, 244, 244)
+        model_name = "maxvit_rmlp_tiny_rw_256"
+        self.maxvit = create_model(model_name, pretrained=True)
+        for param in self.maxvit.parameters():
+            param.requires_grad = False
+        self.maxvit.head.fc = nn.Linear(in_features=512, out_features=self.num_classes, bias=True)
+
+    def forward(self,x):
         out = self.maxvit(x)
         return out
-        
-        
+    
+    
 class SwinV2(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
