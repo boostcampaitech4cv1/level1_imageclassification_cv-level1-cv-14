@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import clip
+#import clip
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
-from vit_pytorch import ViT
-from vit_pytorch.extractor import Extractor
+#from vit_pytorch import ViT
+#from vit_pytorch.extractor import Extractor
 
 from timm import create_model
 
@@ -178,16 +178,6 @@ class MyVit2(nn.Module):
         for param in self.vit.parameters():
             param.requires_grad = False
         self.input_f = self.vit.head.in_features
-        # net = nn.Sequential(
-        #     nn.Linear(input_f,int(input_f/2),bias=True),
-        #     nn.ReLU(),
-        #     nn.Dropout(),
-        #     nn.Linear(int(input_f/2),int(input_f/2/2),bias=True),
-        #     nn.ReLU(),
-        #     nn.Dropout(),
-        #     nn.Linear(int(input_f/2/2),output_f,bias=True)
-        #     #nn.Softmax(dim=-1)
-        # )
         self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
 
     def forward(self,x):
