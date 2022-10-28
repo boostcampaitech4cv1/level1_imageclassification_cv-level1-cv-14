@@ -173,24 +173,28 @@ class MyVit2(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         model_name = "vit_base_patch16_224"
-        # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
         self.vit = create_model(model_name, pretrained=True)
         for param in self.vit.parameters():
             param.requires_grad = False
         self.input_f = self.vit.head.in_features
-        # net = nn.Sequential(
-        #     nn.Linear(input_f,int(input_f/2),bias=True),
-        #     nn.ReLU(),
-        #     nn.Dropout(),
-        #     nn.Linear(int(input_f/2),int(input_f/2/2),bias=True),
-        #     nn.ReLU(),
-        #     nn.Dropout(),
-        #     nn.Linear(int(input_f/2/2),output_f,bias=True)
-        #     #nn.Softmax(dim=-1)
-        # )
         self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
 
     def forward(self,x):
         out = self.vit(x)
         return out
         
+        
+class MyVitSAM(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch32_224_sam"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
