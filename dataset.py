@@ -10,6 +10,8 @@ from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
 
+from rembg import remove
+
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
@@ -200,7 +202,10 @@ class MaskBaseDataset(Dataset):
 
     def read_image(self, index):
         image_path = self.image_paths[index]
-        return Image.open(image_path)
+        img = Image.open(image_path)
+        img = remove(img).convert("RGB")
+        print("background removed")
+        return img
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
