@@ -6,6 +6,11 @@ from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
+from vit_pytorch import ViT
+from vit_pytorch.extractor import Extractor
+
+from timm import create_model
+
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -129,4 +134,80 @@ class EfficientB7(nn.Module):
         out = self.efficient(x)
         return out
     
-# 512 384
+class MyVit(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        vit = ViT(
+            image_size = 128*128,
+            patch_size = 32,
+            num_classes = 1000,
+            dim = 1024,
+            depth = 6,
+            heads = 16,
+            mlp_dim = 2048
+        )
+        self.vit = Extractor(vit, return_embeddings_only = True, detach = False)
+        self.net = nn.Sequential(
+            nn.Linear(17408, self.num_classes),
+            # nn.BatchNorm1d(1024),
+            # nn.LeakyReLU(0.05),
+            # nn.Dropout(0.4),
+            # nn.Linear(1024, 512),
+            # nn.BatchNorm1d(512),
+            # nn.LeakyReLU(0.05),
+            # nn.Dropout(0.4),
+            # nn.Linear(1024, self.num_classes),
+            # nn.Softmax(dim = -1),
+        )
+        
+    def forward(self,x):
+        x_ = self.vit(x)
+        x_ = torch.flatten(x_, start_dim = 1)
+        out = self.net(x_)
+        return out
+    
+
+class MyVit2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch16_224"
+        # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        # net = nn.Sequential(
+        #     nn.Linear(input_f,int(input_f/2),bias=True),
+        #     nn.ReLU(),
+        #     nn.Dropout(),
+        #     nn.Linear(int(input_f/2),int(input_f/2/2),bias=True),
+        #     nn.ReLU(),
+        #     nn.Dropout(),
+        #     nn.Linear(int(input_f/2/2),output_f,bias=True)
+        #     #nn.Softmax(dim=-1)
+        # )
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        self.vit(x)
+        
+    
+def VIT_model():
+    model_name = "vit_base_patch16_224"
+    
+    # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
+    model = create_model(model_name, pretrained=True).to(device)
+    
+    for param in model.parameters():
+        param.requires_grad = False
+    
+    input_f=model.head.in_features
+    output_f = class_num
+    
+
+    
+    model.head=nn.Linear(input_f,output_f,bias=True)
+    
+    return model
