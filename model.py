@@ -191,23 +191,6 @@ class MyVit2(nn.Module):
         self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
 
     def forward(self,x):
-        self.vit(x)
+        out = self.vit(x)
+        return out
         
-    
-def VIT_model():
-    model_name = "vit_base_patch16_224"
-    
-    # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
-    model = create_model(model_name, pretrained=True).to(device)
-    
-    for param in model.parameters():
-        param.requires_grad = False
-    
-    input_f=model.head.in_features
-    output_f = class_num
-    
-
-    
-    model.head=nn.Linear(input_f,output_f,bias=True)
-    
-    return model
