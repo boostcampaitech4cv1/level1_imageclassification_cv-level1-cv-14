@@ -269,6 +269,7 @@ class EfficientNetV2L(nn.Module):
     
 class T4073_CLIP(nn.Module):
     def __init__(self, num_classes):
+        super().__init__()
         self.features_mask = ["I can see the mouth", "There is no mask in photo", "I can see the nose", "mask covered nose and mouth"]
         self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
         self.features_age = [ "Person in photo looks like " + str(i) + " years old" for i in range(101)]
