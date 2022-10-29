@@ -74,6 +74,9 @@ class CustomAlbumentation:
     def __call__(self, image):
         return self.transform(image=np.array(image))['image']
 
+    def __call__(self, image):
+        return self.transform(image=np.array(image))['image']
+
 class T4073_Albumentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = albumentations.Compose([
