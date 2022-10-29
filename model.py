@@ -264,3 +264,36 @@ class EfficientNetV2L(nn.Module):
     def forward(self,x):
         out = self.efficientnet_v2_l(x)
         return out
+    
+class T4073_CLIP(nn.Module):
+    def __init__(self, num_classes):
+        self.features_mask = ["I can see face", "I can see eyes", "I can see nose", "I can see cheek", "I can see mouth", "I can see chin", 'I can see lips']
+        self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
+        self.features_age = [ "looks " + str(i) + " years old" for i in range(1:100)]
+        self.num_classes = num_classes
+        self.device = "cuda"
+        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
+        self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
+        
+    def _get_clip_embedding(self, imgs):
+        # GPU 메모리 약 1.5 GB 필요 --> 만일 부족하다면 clip.available_models() 명령어를 통해 가지고 오는 모델을 바꿀 수 있습니다
+        text_mask = clip.tokenize(self.features_mask).to(self.device)
+        text_gender = clip.tokenize(self.features_gender).to(self.device)
+        text_age = clip.tokenize(self.features_age).to(self.device)
+        with torch.no_grad():
+            # 모델에 image와 text 둘 다 input으로 넣고, 각 text와 image와의 유사도를 구합니다. 값이 클수록 유사합니다.
+            logits_per_image_mask, _ = self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
+            logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
+            logits_per_image_age, _ = self.clip_model(imgs, text_age)
+            probs = logits_per_image.softmax(dim=-1)
+        
+        return probs.float()
+
+    def forward(self, x):
+        """
+        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
+        2. 결과로 나온 output 을 return 해주세요
+        """
+        x_ = self._get_clip_embedding(x)
+        out = self.net(x_)
+        return out
