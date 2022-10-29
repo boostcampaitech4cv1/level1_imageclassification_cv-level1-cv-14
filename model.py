@@ -232,6 +232,7 @@ class MyVit384(nn.Module):
 
     def forward(self,x):
         out = self.vit(x)
+        return out
         
 
 class EfficientNetV2L(nn.Module):
