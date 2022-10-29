@@ -280,13 +280,16 @@ class T4073_CLIP(nn.Module):
         self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
         
     def _get_clip_embedding(self, imgs):
-        text_mask = clip.tokenize(self.features_mask).to(self.device)
-        text_gender = clip.tokenize(self.features_gender).to(self.device)
-        text_age = clip.tokenize(self.features_age).to(self.device)
         with torch.no_grad():
-            logits_per_image_mask, _ = self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
-            logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
-            logits_per_image_age, _ = self.clip_model(imgs, text_age)
+            text_mask = clip.tokenize(self.features_mask).to(self.device)
+            text_gender = clip.tokenize(self.features_gender).to(self.device)
+            text_age = clip.tokenize(self.features_age).to(self.device)
+            input_mask = self.clip_preprocess(text=self.features_mask, images=imgs, return_tensors="pt", padding=True)
+            input_gender = self.clip_preprocess(text=self.features_mask, images=imgs, return_tensors="pt", padding=True)
+            input_age = self.clip_preprocess(text=self.features_mask, images=imgs, return_tensors="pt", padding=True)
+            logits_per_image_mask = self.clip_model(input_mask) # RGB (ex : (1, 3, 244, 244))
+            logits_per_image_gender = self.clip_model(input_gender)
+            logits_per_image_age = self.clip_model(input_age)
             logits_per_image = torch.cat([logits_per_image_mask, logits_per_image_gender, logits_per_image_age], dim = -1)
         
         return logits_per_image
