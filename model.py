@@ -7,7 +7,9 @@ from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
 #pip install git+https://github.com/openai/CLIP.git
-import clip #https://github.com/openai/CLIP
+import clip 
+from transformers import CLIPProcessor, CLIPModel
+#https://github.com/openai/CLIP
 
 #pip install vit_pytorch
 from vit_pytorch import ViT
@@ -267,27 +269,26 @@ class EfficientNetV2L(nn.Module):
     
 class T4073_CLIP(nn.Module):
     def __init__(self, num_classes):
-        self.features_mask = ["I can see face", "I can see eyes", "I can see nose", "I can see cheek", "I can see mouth", "I can see chin", 'I can see lips']
+        self.features_mask = ["I can see the mouth", "There is no mask in photo", "I can see the nose", "mask covered nose and mouth"]
         self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
-        self.features_age = [ "looks " + str(i) + " years old" for i in range(1:100)]
+        self.features_age = [ "Person in photo looks like " + str(i) + " years old" for i in range(101)]
         self.num_classes = num_classes
         self.device = "cuda"
-        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+        self.clip_preprocess = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
         self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
         
     def _get_clip_embedding(self, imgs):
-        # GPU 메모리 약 1.5 GB 필요 --> 만일 부족하다면 clip.available_models() 명령어를 통해 가지고 오는 모델을 바꿀 수 있습니다
         text_mask = clip.tokenize(self.features_mask).to(self.device)
         text_gender = clip.tokenize(self.features_gender).to(self.device)
         text_age = clip.tokenize(self.features_age).to(self.device)
         with torch.no_grad():
-            # 모델에 image와 text 둘 다 input으로 넣고, 각 text와 image와의 유사도를 구합니다. 값이 클수록 유사합니다.
             logits_per_image_mask, _ = self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
             logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
             logits_per_image_age, _ = self.clip_model(imgs, text_age)
-            probs = logits_per_image.softmax(dim=-1)
+            logits_per_image = torch.cat([logits_per_image_mask, logits_per_image_gender, logits_per_image_age], dim = -1)
         
-        return probs.float()
+        return logits_per_image
 
     def forward(self, x):
         """
