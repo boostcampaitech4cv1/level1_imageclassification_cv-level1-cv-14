@@ -29,6 +29,8 @@ for i in range(len(df)):
     #    output_dir = os.path.join(output_path, img_id, img_name+'.jpg')
     #    print(output_dir)
     #    output.save(output_dir)
+    if i < 2634:
+        continue
     img_id = df.iloc[i].ImageID
     img_dir= os.path.join(input_path, img_id)
     print(img_dir)

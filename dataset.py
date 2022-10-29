@@ -74,7 +74,23 @@ class CustomAlbumentation:
     def __call__(self, image):
         return self.transform(image=np.array(image))['image']
 
+class T4073_Albumentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = albumentations.Compose([
+            albumentations.CenterCrop(320, 256),
+            albumentations.GridDistortion(),
+            albumentations.Resize(*resize, Image.BILINEAR),
+            albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            albumentations.HorizontalFlip(),
+            albumentations.Rotate(limit=30),
+            #albumentations.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.3, 0.3), p=0.5),
+            albumentations.GaussNoise(),
+            albumentations.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
 
+    def __call__(self, image):
+        return self.transform(image=np.array(image))['image']
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
