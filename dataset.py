@@ -61,7 +61,7 @@ class CustomAlbumentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = albumentations.Compose([
             albumentations.CenterCrop(320, 256),
-            # albumentations.GridDistortion(),
+            albumentations.GridDistortion(),
             albumentations.Resize(*resize, Image.BILINEAR),
             # albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
             albumentations.HorizontalFlip(),
