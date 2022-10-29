@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import clip
+
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
