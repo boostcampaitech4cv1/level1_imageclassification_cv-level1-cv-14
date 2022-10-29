@@ -2,7 +2,7 @@ import argparse
 import multiprocessing
 import os
 from importlib import import_module
-import tqdm
+from tqdm import tqdm
 
 import pandas as pd
 import torch
