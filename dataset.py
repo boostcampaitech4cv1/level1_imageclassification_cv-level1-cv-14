@@ -9,7 +9,7 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
-import albumentations
+import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 IMG_EXTENSIONS = [
@@ -59,15 +59,15 @@ class CustomAlbumentation:
         pip install albumentations
     """
     def __init__(self, resize, mean, std, **args):
-        self.transform = albumentations.Compose([
-            albumentations.CenterCrop(320, 256),
-            # albumentations.GridDistortion(),
-            albumentations.Resize(*resize, Image.BILINEAR),
-            albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
-            albumentations.HorizontalFlip(),
-            albumentations.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.3, 0.3), p=0.5),
-            albumentations.GaussNoise(),
-            albumentations.Normalize(mean=mean, std=std),
+        self.transform = A.Compose([
+            A.CenterCrop(320, 256, p=0.5),
+            # A.GridDistortion(),
+            A.Resize(*resize, Image.BILINEAR),
+            # A.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            A.HorizontalFlip(),
+            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.2, 0.2), p=0.5),
+            A.GaussNoise(),
+            A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])
 
