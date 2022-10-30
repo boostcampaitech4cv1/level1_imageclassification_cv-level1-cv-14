@@ -76,16 +76,16 @@ class CustomAlbumentation:
 
 class T4073_Albumentation:
     def __init__(self, resize, mean, std, **args):
-        self.transform = albumentations.Compose([
-            albumentations.CenterCrop(320, 256),
-            # albumentations.GridDistortion(),
-            albumentations.Resize(*resize, Image.BILINEAR),
-            albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
-            albumentations.HorizontalFlip(),
-            albumentations.Rotate(limit=30),
-            #albumentations.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.3, 0.3), p=0.5),
-            albumentations.GaussNoise(),
-            albumentations.Normalize(mean=mean, std=std),
+        self.transform = A.Compose([
+            A.CenterCrop(320, 256),
+            # A.GridDistortion(),
+            A.Resize(*resize, Image.BILINEAR),
+            A.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            A.HorizontalFlip(),
+            A.Rotate(limit=30),
+            #A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.3, 0.3), p=0.5),
+            A.GaussNoise(),
+            A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])
 

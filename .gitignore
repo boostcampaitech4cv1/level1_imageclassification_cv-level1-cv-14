@@ -163,4 +163,4 @@ CLIP/
 model/
 output/
 pretrained/
-sample_submission.ipynb
+test.ipynb
