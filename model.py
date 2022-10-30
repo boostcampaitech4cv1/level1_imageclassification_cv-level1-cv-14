@@ -274,9 +274,8 @@ class T4073_CLIP(nn.Module):
         self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
         self.features_age = [ "Person in photo looks like " + str(i) + " years old" for i in range(101)]
         self.num_classes = num_classes
-        self.device = "cuda"
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
-        self.clip_preprocess = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.clip_model, _  = clip.load("ViT-B/32", device=self.device)
         self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
         
     def _get_clip_embedding(self, imgs):
@@ -284,21 +283,19 @@ class T4073_CLIP(nn.Module):
             text_mask = clip.tokenize(self.features_mask).to(self.device)
             text_gender = clip.tokenize(self.features_gender).to(self.device)
             text_age = clip.tokenize(self.features_age).to(self.device)
-            input_mask = self.clip_preprocess(text=self.features_mask, images=imgs, return_tensors="pt", padding=True)
-            input_gender = self.clip_preprocess(text=self.features_mask, images=imgs, return_tensors="pt", padding=True)
-            input_age = self.clip_preprocess(text=self.features_mask, images=imgs, return_tensors="pt", padding=True)
-            logits_per_image_mask = self.clip_model(input_mask) # RGB (ex : (1, 3, 244, 244))
-            logits_per_image_gender = self.clip_model(input_gender)
-            logits_per_image_age = self.clip_model(input_age)
-            logits_per_image = torch.cat([logits_per_image_mask, logits_per_image_gender, logits_per_image_age], dim = -1)
+
+            logits_per_image_mask, _= self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
+            logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
+            logits_per_image_age, _ = self.clip_model(imgs, text_age)
         
-        return logits_per_image
+        return logits_per_image_mask.float(), logits_per_image_gender.float(), logits_per_image_age.float()
 
     def forward(self, x):
         """
         1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
         2. 결과로 나온 output 을 return 해주세요
         """
-        x_ = self._get_clip_embedding(x)
-        out = self.net(x_)
+        emb_mask, emb_gender, emb_age = self._get_clip_embedding(x)
+        x_ = torch.cat([emb_mask, emb_gender, emb_age], dim = -1)
+        out = self.fc(x_)
         return out
