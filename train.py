@@ -136,7 +136,7 @@ def train(data_dir, model_dir, args):
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
     
-    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else 0
+    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else args.num_workers
     
     if args.sampler == "WeightedRandomSampler":
         sampler = get_weighted_sampler(train_set)
@@ -321,7 +321,7 @@ if __name__ == '__main__':
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
-
+    parser.add_argument('--num_workers',type=int, default=0, help='window will use integer num workers')
     args = parser.parse_args()
     print(args)
 
