@@ -61,7 +61,7 @@ class CustomAlbumentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = albumentations.Compose([
             albumentations.CenterCrop(320, 256),
-            albumentations.GridDistortion(),
+            # albumentations.GridDistortion(),
             albumentations.Resize(*resize, Image.BILINEAR),
             albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
             albumentations.HorizontalFlip(),
@@ -342,6 +342,7 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose([
+            CenterCrop((320, 256)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
