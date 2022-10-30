@@ -55,9 +55,10 @@ def inference(data_dir, model_dir, output_dir, args):
 
     print("Calculating inference results..")
     preds = []
-    with torch.no_grad():
-        with tqdm(loader) as pbar:
-            for idx, images in enumerate(pbar):
+    
+    with tqdm(loader) as pbar:
+        for idx, images in enumerate(pbar):
+            with torch.no_grad():
                 images = images.to(device)
                 pred = model(images)
                 pred = pred.argmax(dim=-1)
