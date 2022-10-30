@@ -63,7 +63,7 @@ class CustomAlbumentation:
             albumentations.CenterCrop(320, 256),
             albumentations.GridDistortion(),
             albumentations.Resize(*resize, Image.BILINEAR),
-            # albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            albumentations.ColorJitter(0.1, 0.1, 0.1, 0.1),
             albumentations.HorizontalFlip(),
             albumentations.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.3, 0.3), p=0.5),
             albumentations.GaussNoise(),
