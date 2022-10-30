@@ -300,11 +300,11 @@ class T4073_CLIP(nn.Module):
         out = self.fc(x_)
         return out
     
-class MyVit_giant_14_224(nn.Module):
+class MyVit_huge_14_224(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        model_name = "vit_giant_patch14_224_clip_laion2b"
+        model_name = "vit_huge_patch14_224_in21k"
         self.vit = create_model(model_name, pretrained=True)
         for param in self.vit.parameters():
             param.requires_grad = False
