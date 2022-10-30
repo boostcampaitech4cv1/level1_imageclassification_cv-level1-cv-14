@@ -299,3 +299,18 @@ class T4073_CLIP(nn.Module):
         x_ = torch.cat([emb_mask, emb_gender, emb_age], dim = -1)
         out = self.fc(x_)
         return out
+    
+class MyVit_giant_14_224(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_giant_patch14_224_clip_laion2b"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
