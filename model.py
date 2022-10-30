@@ -7,13 +7,13 @@ from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
 #pip install git+https://github.com/openai/CLIP.git
-import clip 
-from transformers import CLIPProcessor, CLIPModel
+#import clip 
+#from transformers import CLIPProcessor, CLIPModel
 #https://github.com/openai/CLIP
 
 #pip install vit_pytorch
-from vit_pytorch import ViT
-from vit_pytorch.extractor import Extractor
+#from vit_pytorch import ViT
+#from vit_pytorch.extractor import Extractor
 
 from timm import create_model
 
