@@ -68,7 +68,6 @@ class CustomAlbumentation:
                 A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), p=1),
             ], p=0.7),
             A.OneOf([
-                A.GaussianBlur((3, 5), p=1),
                 A.OpticalDistortion(p=1),
                 A.GridDistortion(p=1),
                 A.GaussNoise(var_limit=(200, 400), p=1),
@@ -345,18 +344,17 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
+        self.transform = A.Compose([
+            # A.Resize(*resize, Image.BILINEAR),
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
         ])
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
 
         if self.transform:
-            image = self.transform(image)
+            image = self.transform(image=np.array(image))['image']
         return image
 
     def __len__(self):

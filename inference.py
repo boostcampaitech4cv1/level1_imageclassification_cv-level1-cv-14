@@ -10,6 +10,9 @@ from torch.utils.data import DataLoader
 
 from dataset import TestDataset, MaskBaseDataset
 
+from torchvision.transforms import CenterCrop, RandomHorizontalFlip, Compose, Resize
+from PIL import Image
+
 
 def load_model(saved_model, num_classes, device):
     model_cls = getattr(import_module("model"), args.model)
@@ -52,6 +55,23 @@ def inference(data_dir, model_dir, output_dir, args):
         pin_memory=use_cuda,
         drop_last=False,
     )
+    
+    if args.ensemble:
+        height, width = 320, 256
+        center_crop = Compose([
+            CenterCrop([height, width]),
+            Resize(args.resize, Image.BILINEAR),
+        ])
+        horizon_flip = Compose([
+            RandomHorizontalFlip(p=1),
+            Resize(args.resize, Image.BILINEAR),
+        ])
+        center_horizon = Compose([
+            CenterCrop([height, width]),
+            RandomHorizontalFlip(p=1),
+            Resize(args.resize, Image.BILINEAR),
+        ])
+    image_resize = Resize(args.resize, Image.BILINEAR)
 
     print("Calculating inference results..")
     preds = []
@@ -60,11 +80,17 @@ def inference(data_dir, model_dir, output_dir, args):
         for idx, images in enumerate(pbar):
             with torch.no_grad():
                 images = images.to(device)
-                pred = model(images)
+                if args.ensemble:
+                    pred = model(image_resize(images)) / 4
+                    pred += model(center_crop(images)) / 4
+                    pred += model(horizon_flip(images)) / 4
+                    pred += model(center_horizon(images)) / 4
+                else:
+                    pred = model(image_resize(images))
                 pred = pred.argmax(dim=-1)
                 preds.extend(pred.cpu().numpy())
             pbar.set_description("processing %s" % idx)
-
+    
     info['ans'] = preds
     save_path = os.path.join(output_dir, f'output.csv')
     info.to_csv(save_path, index=False)
@@ -78,6 +104,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--resize', nargs="+", type=int, default=[128, 96], help='resize size for image when you trained (default: [128, 96])')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
+    parser.add_argument('--ensemble', type=bool, default=False)
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))
