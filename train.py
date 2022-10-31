@@ -18,7 +18,7 @@ from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR, CosineAnnealingW
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 
-from dataset import MaskBaseDataset
+from dataset import MaskBaseDataset, ValidAugmentation
 from loss import create_criterion
 
 
@@ -136,6 +136,10 @@ def train(data_dir, model_dir, args):
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
     
+    if args.valid == "Crop":
+        augmentation = ValidAugmentation(resize=args.resize)
+        val_set.dataset.set_transform(augmentation)
+    
     t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else args.num_workers
     
     if args.sampler == "WeightedRandomSampler":
@@ -158,7 +162,7 @@ def train(data_dir, model_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
-
+         
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
@@ -189,7 +193,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == "CosineAnnealingLR":
         scheduler = CosineAnnealingLR(optimizer, T_max=50)
     elif args.scheduler == "CosineAnnealingWarmRestarts":
-        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=25, T_mult=2, eta_min=0)
+        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=2, eta_min=0)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -198,6 +202,7 @@ def train(data_dir, model_dir, args):
 
     patience = args.patience
     counter = 0 #for early_stopping
+    accumulation_steps = args.accumulation_steps
     best_val_acc = 0
     best_val_loss = np.inf
     for epoch in range(args.epochs):
@@ -210,14 +215,16 @@ def train(data_dir, model_dir, args):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
-            optimizer.zero_grad()
-
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
             loss = criterion(outs, labels)
             
             loss.backward()
-            optimizer.step()
+            
+             # -- Gradient Accumulation
+            if (idx+1) % accumulation_steps == 0:
+                optimizer.step()
+                optimizer.zero_grad()
 
             loss_value += loss.item()
             matches += (preds == labels).sum().item()
@@ -303,11 +310,13 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 1)')
     parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
+    parser.add_argument('--valid', type=str, default=None)
     parser.add_argument("--resize", nargs="+", type=int, default=[128, 96], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
     parser.add_argument('--sampler', type=str, default=None)
     parser.add_argument('--scheduler', type=str, default="StepLR")
+    parser.add_argument('--accumulation_steps', type=int, default=1)
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
