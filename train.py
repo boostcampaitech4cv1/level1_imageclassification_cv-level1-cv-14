@@ -169,7 +169,7 @@ def train(data_dir, model_dir, args):
         num_workers=t_num_workers,
         shuffle=False,
         pin_memory=use_cuda,
-        drop_last=True,
+        drop_last=False,
     )
 
     # -- model

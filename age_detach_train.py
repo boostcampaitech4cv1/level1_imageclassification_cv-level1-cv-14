@@ -122,7 +122,7 @@ def train(data_dir, model_dir, args):
     dataset = dataset_module(
         data_dir=data_dir,
     )
-    num_classes = dataset.num_classes  # 18
+    num_classes = 6
 
     # -- augmentation
     transform_module = getattr(import_module("dataset"), args.augmentation)  # default: BaseAugmentation
@@ -208,6 +208,10 @@ def train(data_dir, model_dir, args):
         for idx, train_batch in enumerate(train_loader):
             inputs, labels = train_batch
             inputs = inputs.to(device)
+            #age_labels = torch.tensor(labels)
+            #age_labels = age_labels.apply_(lambda x : x % 3)
+            #age_labels = age_labels.to(device)
+            labels = labels.apply_(lambda x: x // 3)
             labels = labels.to(device)
 
             optimizer.zero_grad()
@@ -227,7 +231,7 @@ def train(data_dir, model_dir, args):
                 current_lr = get_lr(optimizer)
                 print(
                     f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
-                    f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
+                    f"mg training loss {train_loss:4.4} || mg training accuracy {train_acc:4.2%} || lr {current_lr}"
                 )
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
@@ -248,6 +252,10 @@ def train(data_dir, model_dir, args):
                 for idx, val_batch in enumerate(pbar):
                     inputs, labels = val_batch
                     inputs = inputs.to(device)
+                    #age_labels = torch.tensor(labels)
+                    #age_labels = age_labels.apply_(lambda x : x % 3)
+                    #age_labels = age_labels.to(device)
+                    labels = labels.apply_(lambda x: x // 3)
                     labels = labels.to(device)
 
                     outs = model(inputs)

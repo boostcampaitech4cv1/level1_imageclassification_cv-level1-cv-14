@@ -3,13 +3,13 @@ from PIL import Image
 import pandas as pd
 from rembg import remove
 
-#input_path = "../EDA/train/images"
-#output_path = "../EDA/train/removed_images"
-#df = pd.read_csv('../EDA/train/train.csv')
+#input_path = "../../EDA/train/images"
+#output_path = "../../EDA/train/removed_images"
+#df = pd.read_csv('../../EDA/train/train.csv')
 
-input_path = "../EDA/eval/images"
-output_path = "../EDA/eval/removed_images"
-df = pd.read_csv('../EDA/eval/info.csv')
+input_path = "../../EDA/eval/images"
+output_path = "../../EDA/eval/removed_images"
+df = pd.read_csv('../../EDA/eval/info.csv')
 
 def get_ext(img_dir, img_id, idx):
     filename = os.listdir(os.path.join(img_dir, img_id))[idx]
