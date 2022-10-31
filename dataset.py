@@ -61,12 +61,18 @@ class CustomAlbumentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = A.Compose([
             A.CenterCrop(320, 256, p=0.5),
-            A.GridDistortion(),
             A.Resize(*resize, Image.BILINEAR),
-            A.ColorJitter(0.1, 0.1, 0.1, 0.1),
-            A.HorizontalFlip(),
-            # A.RandomBrightnessContrast(brightness_limit=(-0.15, 0.15), contrast_limit=(-0.2, 0.2), p=0.5),
-            A.GaussNoise(),
+            A.HorizontalFlip(p=0.5),
+            A.OneOf([
+                A.ColorJitter(0.1, 0.1, 0.1, 0.1, p=1),
+                A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), p=1),
+            ], p=0.7),
+            A.OneOf([
+                A.GaussianBlur((3, 5), p=1),
+                A.OpticalDistortion(p=1),
+                A.GridDistortion(p=1),
+                A.GaussNoise(var_limit=(200, 400), p=1),
+            ], p=0.7),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])

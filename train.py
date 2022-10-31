@@ -193,7 +193,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == "CosineAnnealingLR":
         scheduler = CosineAnnealingLR(optimizer, T_max=50)
     elif args.scheduler == "CosineAnnealingWarmRestarts":
-        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=2, eta_min=0)
+        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=25, T_mult=1, eta_min=0)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
