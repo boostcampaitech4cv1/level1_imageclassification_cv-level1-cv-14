@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
+from loss import ArcMarginProduct
 
 #pip install git+https://github.com/openai/CLIP.git
 #import clip 
@@ -17,6 +18,37 @@ from torchvision.models import efficientnet_b4, efficientnet_b7
 
 from timm import create_model
 
+class test(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=7, stride=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1)
+        self.dropout1 = nn.Dropout(0.25)
+        self.dropout2 = nn.Dropout(0.25)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(128, num_classes)
+        self.arc = ArcMarginProduct(num_classes,num_classes)
+
+    def forward(self, x,label,train):
+        x = self.conv1(x)
+        x = F.relu(x)
+
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout1(x)
+
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout2(x)
+
+        x = self.avgpool(x)
+        x = x.view(-1, 128)
+        x = self.fc(x)
+        x = self.arc(x,label,train)
+        return x
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -29,8 +61,9 @@ class BaseModel(nn.Module):
         self.dropout2 = nn.Dropout(0.25)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128, num_classes)
+        
 
-    def forward(self, x):
+    def forward(self, x,label,train):
         x = self.conv1(x)
         x = F.relu(x)
 
@@ -314,3 +347,70 @@ class MyVit_huge_14_224(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
+
+
+class Vit384_arcface(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch16_384"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        print(self.input_f)
+        self.vit.head = nn.Linear(self.input_f, 500, bias=True)
+        self.arc = ArcMarginProduct(500,num_classes)
+
+    def forward(self,x,label,train):
+        out = self.vit(x)
+        out = self.arc(out,label,train)
+        return out
+
+class EfficientB7_arcface(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficient = efficientnet_b7(pretrained=True)
+        for param in self.efficient.parameters():
+            param.requires_grad = False
+        self.efficient.classifier[1] = nn.Linear(2560, 1000)
+        self.arc = ArcMarginProduct(1000,num_classes)
+        
+
+    def forward(self, x,label,train):
+        out = self.efficient(x)
+        out = self.arc(x,label,train)
+        return out
+    
+# class test(nn.Module):
+#     def __init__(self, num_classes):
+#         super().__init__()
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=7, stride=1)
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1)
+#         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1)
+#         self.dropout1 = nn.Dropout(0.25)
+#         self.dropout2 = nn.Dropout(0.25)
+#         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+#         self.fc = nn.Linear(128, num_classes)
+#         self.arc = ArcMarginProduct(num_classes,num_classes)
+
+#     def forward(self, x,label,train):
+#         x = self.conv1(x)
+#         x = F.relu(x)
+
+#         x = self.conv2(x)
+#         x = F.relu(x)
+#         x = F.max_pool2d(x, 2)
+#         x = self.dropout1(x)
+
+#         x = self.conv3(x)
+#         x = F.relu(x)
+#         x = F.max_pool2d(x, 2)
+#         x = self.dropout2(x)
+
+#         x = self.avgpool(x)
+#         x = x.view(-1, 128)
+#         x = self.fc(x)
+#         x = self.arc(x,label,train)
+#         return x

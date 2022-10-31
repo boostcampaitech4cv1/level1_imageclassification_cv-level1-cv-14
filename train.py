@@ -215,7 +215,7 @@ def train(data_dir, model_dir, args):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
-            outs = model(inputs)
+            outs = model(inputs,labels,train=True)
             preds = torch.argmax(outs, dim=-1)
             loss = criterion(outs, labels)
             
@@ -257,10 +257,13 @@ def train(data_dir, model_dir, args):
                     inputs = inputs.to(device)
                     labels = labels.to(device)
 
-                    outs = model(inputs)
+                    outs = model(inputs,labels,train=False)
                     preds = torch.argmax(outs, dim=-1)
 
                     loss_item = criterion(outs, labels).item()
+                    # #seo
+                    # print("loss_item.shape: ",loss_item.shape)
+                    # print("loss_item: ",loss_item)
                     acc_item = (labels == preds).sum().item()
                     val_loss_items.append(loss_item)
                     val_acc_items.append(acc_item)
@@ -311,7 +314,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--valid', type=str, default=None)
-    parser.add_argument("--resize", nargs="+", type=int, default=[128, 96], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=int, default=[384, 128], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
     parser.add_argument('--sampler', type=str, default=None)

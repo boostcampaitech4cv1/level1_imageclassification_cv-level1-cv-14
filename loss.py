@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.nn import Parameter
+import math
+import pandas as pd
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
@@ -65,12 +67,66 @@ class F1Loss(nn.Module):
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
 
+#https://github.com/wujiyang/Face_Pytorch/blob/master/margin/ArcMarginProduct.py
+class ArcMarginProduct(nn.Module):
+    def __init__(self, in_feature=18, out_feature=18, s=32.0, m=0.50, easy_margin=False):
+        super(ArcMarginProduct, self).__init__()
+        self.in_feature = in_feature
+        self.out_feature = out_feature
+        self.s = s
+        self.m = m
+        self.weight = Parameter(torch.Tensor(out_feature, in_feature))
+        nn.init.xavier_uniform_(self.weight)
+
+        self.easy_margin = easy_margin
+        self.cos_m = math.cos(m)
+        self.sin_m = math.sin(m)
+
+        # make the function cos(theta+m) monotonic decreasing while theta in [0°,180°]
+        self.th = math.cos(math.pi - m)
+        self.mm = math.sin(math.pi - m) * m
+
+    def forward(self, x, label,train):
+        # cos(theta)
+        #print(x.device)
+        #seo
+        tmp = self.weight.cuda().detach()
+        #print(x)
+        # data = x.cpu().detach().numpy()
+        # df = pd.DataFrame(data)
+        #df.to_csv('x.csv', index=False)
+        
+        #cosine = F.linear(F.normalize(x), F.normalize(self.weight))
+        #print(type(tmp))
+        cosine = F.linear(F.normalize(x), F.normalize(tmp))
+        
+        # cos(theta + m)
+        sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
+        phi = cosine * self.cos_m - sine * self.sin_m
+
+        if self.easy_margin:
+            phi = torch.where(cosine > 0, phi, cosine)
+        else:
+            phi = torch.where((cosine - self.th) > 0, phi, cosine - self.mm)
+        if train:
+            one_hot = torch.zeros_like(cosine)
+            one_hot.scatter_(1, label.view(-1, 1), 1)
+            output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
+        else:
+            output = cosine
+        output = output * self.s
+        # tmp = output.cpu().detach().numpy()
+        # df = pd.DataFrame(tmp)
+        #df.to_csv('sample.csv', index=False)
+        #print(output)
+        return output
 
 _criterion_entrypoints = {
     'cross_entropy': nn.CrossEntropyLoss,
     'focal': FocalLoss,
     'label_smoothing': LabelSmoothingLoss,
-    'f1': F1Loss
+    'f1': F1Loss,
+    'arcface': ArcMarginProduct
 }
 
 
