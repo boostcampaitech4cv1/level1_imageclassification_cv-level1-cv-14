@@ -56,16 +56,16 @@ class CustomAlbumentation:
         Requirements
         pip install typing-extensions==4.4.0
         pip install opencv-python==4.6.0.66
-        pip install albumentations
+        pip install albumentations==1.3.0
     """
     def __init__(self, resize, mean, std, **args):
         self.transform = A.Compose([
             A.CenterCrop(320, 256, p=0.5),
-            # A.GridDistortion(),
+            A.GridDistortion(),
             A.Resize(*resize, Image.BILINEAR),
-            # A.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            A.ColorJitter(0.1, 0.1, 0.1, 0.1),
             A.HorizontalFlip(),
-            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.2, 0.2), p=0.5),
+            # A.RandomBrightnessContrast(brightness_limit=(-0.15, 0.15), contrast_limit=(-0.2, 0.2), p=0.5),
             A.GaussNoise(),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
@@ -355,3 +355,15 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+class ValidAugmentation:
+    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+        self.transform = A.Compose([
+            A.CenterCrop(320, 256),
+            A.Resize(*resize, Image.BILINEAR),
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image=np.array(image))['image']
