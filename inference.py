@@ -13,8 +13,8 @@ from torchvision.transforms import Resize
 import numpy as np
 
 
-def load_model(saved_model, num_classes, device):
-    model_cls = getattr(import_module("model"), args.model)
+def load_model(saved_model, num_classes, device, model_name):
+    model_cls = getattr(import_module("model"), model_name)
     model = model_cls(
         num_classes=num_classes
     )
@@ -38,10 +38,10 @@ def inference(data_dir, model_dir, output_dir, args):
 
     num_classes = MaskBaseDataset.num_classes  # 18
     if args.ensemble:
-        vit_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
-        efficient_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
-        senet_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
-        mixnet_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+        vit_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device, 'MyVit384').to(device)
+        efficient_model = load_model('./model/effib4-alb-1', num_classes, device, 'EfficientB4').to(device)
+        senet_model = load_model('./model/senet-alb-1', num_classes, device, 'SENet154').to(device)
+        mixnet_model = load_model('./model/mixnet-alb-1', num_classes, device, 'MixNet').to(device)
         vit_model.eval()
         efficient_model.eval()
         senet_model.eval()
@@ -52,7 +52,7 @@ def inference(data_dir, model_dir, output_dir, args):
         mixnet_resize = Resize([224, 224])
         args.resize = None
     else:
-        model = load_model(model_dir, num_classes, device).to(device)
+        model = load_model(model_dir, num_classes, device, args.model).to(device)
         model.eval()
 
     img_root = os.path.join(data_dir, 'images')
@@ -149,7 +149,7 @@ def validation(data_dir, model_dir, args):
 
         val_acc = np.sum(val_acc_items) / len(val_set)
         print(f"Best model for val accuracy : {val_acc:4.2%}")
-        
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
