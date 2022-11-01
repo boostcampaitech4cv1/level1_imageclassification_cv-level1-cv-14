@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import TTA, ImageToTensor, TestDataset, MaskBaseDataset
+from dataset import TTA, ImageToTensor, TestDataset, MaskBaseDataset, ValidAugmentation
 import numpy as np
 
 
@@ -85,7 +85,7 @@ def validation(data_dir, model_dir, args):
     
     dataset = MaskBaseDataset(data_dir='/opt/ml/input/data/train/images')
     _, val_set = dataset.split_dataset()
-    transform = ImageToTensor()
+    transform = ValidAugmentation() # ImageToTensor
     val_set.dataset.set_transform(transform)
     
     val_loader = DataLoader(
@@ -97,8 +97,8 @@ def validation(data_dir, model_dir, args):
         drop_last=True,
     )
     
-    if args.ensemble:
-        center_crop, horizon_flip, center_horizon, image_resize = TTA(args.resize, [320, 256])
+    # if args.ensemble:
+    #     center_crop, horizon_flip, center_horizon, image_resize = TTA(args.resize, [320, 256])
     
     with torch.no_grad():
         print("Calculating validation results...")
@@ -110,14 +110,15 @@ def validation(data_dir, model_dir, args):
                 images = images.to(device)
                 labels = labels.to(device)
                 
-                if args.ensemble:
-                    pred = model(image_resize(images)) / 4
-                    pred += model(center_crop(images)) / 4
-                    pred += model(horizon_flip(images)) / 4
-                    pred += model(center_horizon(images)) / 4
-                else:
-                    pred = model(image_resize(images))
-                    
+                # if args.ensemble:
+                #     pred = model(image_resize(images)) / 4
+                #     pred += model(center_crop(images)) / 4
+                #     pred += model(horizon_flip(images)) / 4
+                #     pred += model(center_horizon(images)) / 4
+                # else:
+                #     pred = model(image_resize(images))
+                
+                pred = model(images)
                 preds = torch.argmax(pred, dim=-1)
                 
                 acc_item = (labels == preds).sum().item()

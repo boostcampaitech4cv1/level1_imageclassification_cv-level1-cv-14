@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
-from torchvision.models import efficientnet_b4, efficientnet_b7
+from torchvision.models import efficientnet_b7
 
 #pip install git+https://github.com/openai/CLIP.git
 #import clip 
@@ -73,8 +73,7 @@ class CustomClipLinear(nn.Module): # 쓰레기
             nn.LeakyReLU(0.05),
             nn.Linear(196, self.num_classes),
         )
-
-
+        
     def set_features(self, features):
         self.features = features
         self.linear = nn.Linear(len(self.features), self.num_classes)
@@ -101,6 +100,36 @@ class CustomClipLinear(nn.Module): # 쓰레기
         return out
 
 
+class Xception65(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "gluon_xception65"
+        self.model = create_model(model_name, pretrained=True)
+        for param in self.model.parameters():
+            param.requires_grad = False
+        self.model.fc = nn.Linear(2048, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.model(x)
+        return out
+    
+    
+class SENet154(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "gluon_senet154"
+        self.model = create_model(model_name, pretrained=True)
+        for param in self.model.parameters():
+            param.requires_grad = False
+        self.model.fc = nn.Linear(2048, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.model(x)
+        return out
+    
+    
 class EfficientB4(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -124,16 +153,11 @@ class EfficientB7(nn.Module):
         for param in self.efficient.parameters():
             param.requires_grad = False
         self.efficient.classifier[1] = nn.Linear(2560, self.num_classes)
-        # self.efficient.classifier = nn.Sequential(
-        #     nn.Linear(2560, 2560),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout1d(0.4),
-        #     nn.Linear(2560, self.num_classes),
-        # )
 
     def forward(self, x):
         out = self.efficient(x)
         return out
+    
     
 class MyVit(nn.Module):
     def __init__(self, num_classes):
@@ -234,6 +258,7 @@ class MyVit384(nn.Module):
         out = self.vit(x)
         return out
         
+        
 class MyVit32_384(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -249,6 +274,7 @@ class MyVit32_384(nn.Module):
         out = self.vit(x)
         return out
         
+        
 class EfficientNetV2L(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -261,6 +287,7 @@ class EfficientNetV2L(nn.Module):
     def forward(self,x):
         out = self.efficientnet_v2_l(x)
         return out
+    
     
 class T4073_CLIP(nn.Module):
     def __init__(self, num_classes):
@@ -294,6 +321,7 @@ class T4073_CLIP(nn.Module):
         x_ = torch.cat([emb_mask, emb_gender, emb_age], dim = -1)
         out = self.fc(x_)
         return out
+    
     
 class MyVit_huge_14_224(nn.Module):
     def __init__(self, num_classes):
