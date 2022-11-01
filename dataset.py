@@ -344,12 +344,15 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = A.Compose([
-            A.CenterCrop(320, 256),
-            A.Resize(*resize, Image.BILINEAR),
-            A.Normalize(mean=mean, std=std),
-            ToTensorV2(),
-        ])
+        if resize:
+            self.transform = A.Compose([
+                A.CenterCrop(320, 256),
+                A.Resize(*resize, Image.BILINEAR),
+                A.Normalize(mean=mean, std=std),
+                ToTensorV2(),
+            ])
+        else:
+            self.transform = ImageToTensor(mean=mean, std=std)
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
@@ -378,12 +381,13 @@ class ValidAugmentation:
 class ImageToTensor:
     def __init__(self, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.transform = A.Compose([
+            A.CenterCrop(320, 256),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])
 
     def __call__(self, image):
-        return self.transform(image=np.array(image))['image']
+        return self.transform(image=image)
     
     
 def TTA(resize, crop_size=[320, 256]):    

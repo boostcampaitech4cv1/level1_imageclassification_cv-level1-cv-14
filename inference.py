@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import TTA, ImageToTensor, TestDataset, MaskBaseDataset, ValidAugmentation
+from torchvision.transforms import Resize
 import numpy as np
 
 
@@ -36,8 +37,23 @@ def inference(data_dir, model_dir, output_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     num_classes = MaskBaseDataset.num_classes  # 18
-    model = load_model(model_dir, num_classes, device).to(device)
-    model.eval()
+    if args.ensemble:
+        vit_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+        efficient_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+        senet_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+        mixnet_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+        vit_model.eval()
+        efficient_model.eval()
+        senet_model.eval()
+        mixnet_model.eval()
+        vit_resize = Resize([384, 384])
+        efficient_resize = Resize([380, 380])
+        senet_resize = Resize([224, 224])
+        mixnet_resize = Resize([224, 224])
+        args.resize = None
+    else:
+        model = load_model(model_dir, num_classes, device).to(device)
+        model.eval()
 
     img_root = os.path.join(data_dir, 'images')
     info_path = os.path.join(data_dir, 'info.csv')
@@ -61,7 +77,13 @@ def inference(data_dir, model_dir, output_dir, args):
         for idx, images in enumerate(pbar):
             with torch.no_grad():
                 images = images.to(device)
-                pred = model(images)
+                if args.ensemble:
+                    pred = vit_model(vit_resize(images))
+                    pred += efficient_model(efficient_resize(images))
+                    pred += senet_model(senet_resize(images))
+                    pred += mixnet_model(mixnet_resize(images))
+                else:
+                    pred = model(images)
                 pred = pred.argmax(dim=-1)
                 preds.extend(pred.cpu().numpy())
             pbar.set_description("processing %s" % idx)
@@ -80,15 +102,7 @@ def validation(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     num_classes = MaskBaseDataset.num_classes  # 18
-    # vit_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
-    # efficient_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
-    # senet_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
-    # xception_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
     model = load_model(model_dir, num_classes, device).to(device)
-    # vit_model.eval()
-    # efficient_model.eval()
-    # senet_model.eval()
-    # xception_model.eval()
     model.eval()
     
     dataset = MaskBaseDataset(data_dir='/opt/ml/input/data/train/images')
@@ -105,7 +119,7 @@ def validation(data_dir, model_dir, args):
         drop_last=True,
     )
     
-    # if args.ensemble:
+    # if args.tta:
     #     center_crop, horizon_flip, center_horizon, image_resize = TTA(args.resize, [320, 256])
     
     with torch.no_grad():
@@ -118,7 +132,7 @@ def validation(data_dir, model_dir, args):
                 images = images.to(device)
                 labels = labels.to(device)
                 
-                # if args.ensemble:
+                # if args.tta:
                 #     pred = model(image_resize(images)) / 4
                 #     pred += model(center_crop(images)) / 4
                 #     pred += model(horizon_flip(images)) / 4
