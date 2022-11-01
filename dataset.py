@@ -153,7 +153,7 @@ class AgeLabels(int, Enum):
         else:
             return cls.OLD
 
-class AgeLabel_105(int, Enum):
+class AgeLabels_105(int, Enum):
     @classmethod
     def from_number(cls, value) -> int:
         try:
@@ -435,7 +435,7 @@ class Age_only_Dataset(Dataset):
                 mask_label = self._file_names[_file_name]
 
                 id, gender, race, age = profile.split("_")
-                age_label = AgeLabels.from_number(age)
+                age_label = AgeLabels_105.from_number(age)
                 self.image_paths.append(img_path)
                 self.age_labels.append(age_label)
 

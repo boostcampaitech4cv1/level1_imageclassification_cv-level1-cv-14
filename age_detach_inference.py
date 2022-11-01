@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from dataset import age_detach_TestDataset
+from dataset import Age_only_Dataset
 from PIL import Image
 import albumentations as A
 
@@ -46,7 +46,7 @@ def inference(data_dir, model_dir, output_dir, args):
     
     #age_model = resnet34(55, False).cuda()
     #age_model.load_state_dict(torch.load('./model/CORAL2020/best_model.pt', map_location='cuda'))
-    age_model = load_model('./model/3_class_vit_128batch', 3, device).to(device)
+    age_model = load_model('./model/105class_age_label', 105, device).to(device)
     age_model.eval()
     
     img_root = os.path.join(data_dir, 'images')
@@ -54,7 +54,7 @@ def inference(data_dir, model_dir, output_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = age_detach_TestDataset(img_paths, args.resize)
+    dataset = Age_only_Dataset(img_paths, args.resize)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -75,8 +75,9 @@ def inference(data_dir, model_dir, output_dir, args):
                 pred = pred.argmax(dim=-1)
                 age_pred = age_model(images)
                 age_pred = age_pred.argmax(dim=-1)
-                #print(predicted_label)
-                pred = pred * 3 + age_pred
+                
+                print(age_pred)
+                pred = pred * 3 + get_age_class(age_pred)
                 preds.extend(pred.cpu().numpy())
             pbar.set_description("processing %s" % idx)
 
@@ -97,7 +98,7 @@ if __name__ == '__main__':
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '../EDA/eval'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/6_class_vit_32batch'))
-    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output/Age_Detach_atrain'))
+    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output/Age_Detach_atrain105'))
 
     args = parser.parse_args()
 

@@ -122,7 +122,7 @@ def train(data_dir, model_dir, args):
     dataset = dataset_module(
         data_dir=data_dir,
     )
-    num_classes = 3
+    num_classes = 105
 
     # -- augmentation
     transform_module = getattr(import_module("dataset"), args.augmentation)  # default: BaseAugmentation
@@ -212,11 +212,13 @@ def train(data_dir, model_dir, args):
             #age_labels = age_labels.apply_(lambda x : x % 3)
             #age_labels = age_labels.to(device)
             labels = labels.to(device)
-
+            #print("labels ", labels)
             optimizer.zero_grad()
 
             outs = model(inputs)
+            #print("out.shape ", outs.shape)
             preds = torch.argmax(outs, dim=-1)
+            #print("preds", preds)
             loss = criterion(outs, labels)
             
             loss.backward()
@@ -258,7 +260,6 @@ def train(data_dir, model_dir, args):
 
                     outs = model(inputs)
                     preds= torch.argmax(outs, dim=-1)
-
                     loss_item = criterion(outs, labels).item()
                     acc_item = (labels == preds).sum().item()
                     val_loss_items.append(loss_item)
