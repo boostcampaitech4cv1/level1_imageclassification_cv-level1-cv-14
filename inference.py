@@ -8,10 +8,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import TestDataset, MaskBaseDataset
-
-from torchvision.transforms import CenterCrop, RandomHorizontalFlip, Compose, Resize
-from PIL import Image
+from dataset import TTA, ImageToTensor, TestDataset, MaskBaseDataset
+import numpy as np
 
 
 def load_model(saved_model, num_classes, device):
@@ -47,7 +45,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
     dataset = TestDataset(img_paths, args.resize)
-    loader = torch.utils.data.DataLoader(
+    loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
         num_workers=multiprocessing.cpu_count() // 2,
@@ -56,23 +54,6 @@ def inference(data_dir, model_dir, output_dir, args):
         drop_last=False,
     )
     
-    if args.ensemble:
-        height, width = 320, 256
-        center_crop = Compose([
-            CenterCrop([height, width]),
-            Resize(args.resize, Image.BILINEAR),
-        ])
-        horizon_flip = Compose([
-            RandomHorizontalFlip(p=1),
-            Resize(args.resize, Image.BILINEAR),
-        ])
-        center_horizon = Compose([
-            CenterCrop([height, width]),
-            RandomHorizontalFlip(p=1),
-            Resize(args.resize, Image.BILINEAR),
-        ])
-    image_resize = Resize(args.resize, Image.BILINEAR)
-
     print("Calculating inference results..")
     preds = []
     
@@ -80,13 +61,7 @@ def inference(data_dir, model_dir, output_dir, args):
         for idx, images in enumerate(pbar):
             with torch.no_grad():
                 images = images.to(device)
-                if args.ensemble:
-                    pred = model(image_resize(images)) / 4
-                    pred += model(center_crop(images)) / 4
-                    pred += model(horizon_flip(images)) / 4
-                    pred += model(center_horizon(images)) / 4
-                else:
-                    pred = model(image_resize(images))
+                pred = model(images)
                 pred = pred.argmax(dim=-1)
                 preds.extend(pred.cpu().numpy())
             pbar.set_description("processing %s" % idx)
@@ -95,16 +70,73 @@ def inference(data_dir, model_dir, output_dir, args):
     save_path = os.path.join(output_dir, f'output.csv')
     info.to_csv(save_path, index=False)
     print(f"Inference Done! Inference result saved at {save_path}")
+    
+    
+@torch.no_grad()
+def validation(data_dir, model_dir, args):
+    """
+    """
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
 
+    num_classes = MaskBaseDataset.num_classes  # 18
+    model = load_model(model_dir, num_classes, device).to(device)
+    model.eval()
+    
+    dataset = MaskBaseDataset(data_dir='/opt/ml/input/data/train/images')
+    _, val_set = dataset.split_dataset()
+    transform = ImageToTensor()
+    val_set.dataset.set_transform(transform)
+    
+    val_loader = DataLoader(
+        val_set,
+        batch_size=args.batch_size,
+        num_workers=multiprocessing.cpu_count() // 2,
+        shuffle=False,
+        pin_memory=use_cuda,
+        drop_last=True,
+    )
+    
+    if args.ensemble:
+        center_crop, horizon_flip, center_horizon, image_resize = TTA(args.resize, [320, 256])
+    
+    with torch.no_grad():
+        print("Calculating validation results...")
+        model.eval()
+        val_acc_items = []
+        with tqdm(val_loader) as pbar:
+            for idx, val_batch in enumerate(pbar):
+                images, labels = val_batch
+                images = images.to(device)
+                labels = labels.to(device)
+                
+                if args.ensemble:
+                    pred = model(image_resize(images)) / 4
+                    pred += model(center_crop(images)) / 4
+                    pred += model(horizon_flip(images)) / 4
+                    pred += model(center_horizon(images)) / 4
+                else:
+                    pred = model(image_resize(images))
+                    
+                preds = torch.argmax(pred, dim=-1)
+                
+                acc_item = (labels == preds).sum().item()
+                val_acc_items.append(acc_item)
+            pbar.set_description("processing %s" % idx)
+
+        val_acc = np.sum(val_acc_items) / len(val_set)
+        print(f"Best model for val accuracy : {val_acc:4.2%}")
+        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--batch_size', type=int, default=256, help='input batch size for validing (default: 1000)')
     parser.add_argument('--resize', nargs="+", type=int, default=[128, 96], help='resize size for image when you trained (default: [128, 96])')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--ensemble', type=bool, default=False)
+    parser.add_argument('--valid', type=bool, default=False)
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))
@@ -119,4 +151,7 @@ if __name__ == '__main__':
 
     os.makedirs(output_dir, exist_ok=True)
 
-    inference(data_dir, model_dir, output_dir, args)
+    if args.valid:
+        validation(data_dir, model_dir, output_dir, args)
+    else:
+        inference(data_dir, model_dir, output_dir, args)

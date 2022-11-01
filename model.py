@@ -105,19 +105,14 @@ class EfficientB4(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        self.efficient = efficientnet_b4(pretrained=True)
-        for param in self.efficient.parameters():
+        model_name = "efficientnet_b4"
+        self.model = create_model(model_name, pretrained=True)
+        for param in self.model.parameters():
             param.requires_grad = False
-        self.efficient.classifier[1] = nn.Linear(1792, self.num_classes)
-        # self.efficient.classifier = nn.Sequential(
-        #     nn.Linear(1792, 1792),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout1d(0.4),
-        #     nn.Linear(1792, self.num_classes),
-        # )
+        self.model.classifier = nn.Linear(1792, self.num_classes, bias=True)
 
-    def forward(self, x):
-        out = self.efficient(x)
+    def forward(self,x):
+        out = self.model(x)
         return out
 
 

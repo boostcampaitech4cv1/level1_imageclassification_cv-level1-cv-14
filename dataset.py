@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomHorizontalFlip
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
@@ -345,7 +345,8 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = A.Compose([
-            # A.Resize(*resize, Image.BILINEAR),
+            A.CenterCrop(320, 256),
+            A.Resize(*resize, Image.BILINEAR),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])
@@ -360,8 +361,9 @@ class TestDataset(Dataset):
     def __len__(self):
         return len(self.img_paths)
 
+
 class ValidAugmentation:
-    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.transform = A.Compose([
             A.CenterCrop(320, 256),
             A.Resize(*resize, Image.BILINEAR),
@@ -371,3 +373,33 @@ class ValidAugmentation:
 
     def __call__(self, image):
         return self.transform(image=np.array(image))['image']
+    
+
+class ImageToTensor:
+    def __init__(self, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.transform = A.Compose([
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image=np.array(image))['image']
+    
+    
+def TTA(resize, crop_size=[320, 256]):    
+    center_crop = Compose([
+        CenterCrop(crop_size),
+        Resize(resize, Image.BILINEAR),
+    ])
+    horizon_flip = Compose([
+        RandomHorizontalFlip(p=1),
+        Resize(resize, Image.BILINEAR),
+    ])
+    center_horizon = Compose([
+        CenterCrop(crop_size),
+        RandomHorizontalFlip(p=1),
+        Resize(resize, Image.BILINEAR),
+    ])
+    image_resize = Resize(resize, Image.BILINEAR)
+
+    return center_crop, horizon_flip, center_horizon, image_resize

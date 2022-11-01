@@ -223,7 +223,7 @@ def train(data_dir, model_dir, args):
             # loss.backward()
             ce_loss = loss_fn_1(outs, labels)
             f1_loss = loss_fn_2(outs, labels)
-            loss = (ce_loss + f1_loss) / 2
+            loss = (ce_loss + f1_loss)
             loss.backward()
             
              # -- Gradient Accumulation
@@ -268,7 +268,7 @@ def train(data_dir, model_dir, args):
                     # loss_item = criterion(outs, labels).item()
                     ce_loss = loss_fn_1(outs, labels)
                     f1_loss = loss_fn_2(outs, labels)
-                    loss = (ce_loss + f1_loss) / 2
+                    loss = (ce_loss + f1_loss)
                     loss_item = loss.item()
                     
                     acc_item = (labels == preds).sum().item()
