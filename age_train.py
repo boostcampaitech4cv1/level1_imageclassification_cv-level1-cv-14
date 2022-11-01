@@ -211,7 +211,6 @@ def train(data_dir, model_dir, args):
             #age_labels = torch.tensor(labels)
             #age_labels = age_labels.apply_(lambda x : x % 3)
             #age_labels = age_labels.to(device)
-            labels = labels.apply_(lambda x: x % 3)
             labels = labels.to(device)
 
             optimizer.zero_grad()
@@ -255,11 +254,10 @@ def train(data_dir, model_dir, args):
                     #age_labels = torch.tensor(labels)
                     #age_labels = age_labels.apply_(lambda x : x % 3)
                     #age_labels = age_labels.to(device)
-                    labels = labels.apply_(lambda x: x % 3)
                     labels = labels.to(device)
 
                     outs = model(inputs)
-                    preds = torch.argmax(outs, dim=-1)
+                    preds= torch.argmax(outs, dim=-1)
 
                     loss_item = criterion(outs, labels).item()
                     acc_item = (labels == preds).sum().item()
