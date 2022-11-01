@@ -80,7 +80,15 @@ def validation(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     num_classes = MaskBaseDataset.num_classes  # 18
+    # vit_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+    # efficient_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+    # senet_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
+    # xception_model = load_model('./model/vit384-wrs-alb3-2', num_classes, device).to(device)
     model = load_model(model_dir, num_classes, device).to(device)
+    # vit_model.eval()
+    # efficient_model.eval()
+    # senet_model.eval()
+    # xception_model.eval()
     model.eval()
     
     dataset = MaskBaseDataset(data_dir='/opt/ml/input/data/train/images')

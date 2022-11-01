@@ -100,15 +100,15 @@ class CustomClipLinear(nn.Module): # 쓰레기
         return out
 
 
-class Xception65(nn.Module):
+class MixNet(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        model_name = "gluon_xception65"
+        model_name = "mixnet_l"
         self.model = create_model(model_name, pretrained=True)
         for param in self.model.parameters():
             param.requires_grad = False
-        self.model.fc = nn.Linear(2048, self.num_classes, bias=True)
+        self.model.classifier = nn.Linear(1536, self.num_classes, bias=True)
 
     def forward(self,x):
         out = self.model(x)
