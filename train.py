@@ -14,7 +14,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR, CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 
@@ -136,7 +136,7 @@ def train(data_dir, model_dir, args):
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
     
-    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else 0
+    t_num_workers = multiprocessing.cpu_count() // 2 if not Is_Windows else args.num_workers
     
     if args.sampler == "WeightedRandomSampler":
         sampler = get_weighted_sampler(train_set)
@@ -183,7 +183,13 @@ def train(data_dir, model_dir, args):
         lr=args.lr,
         weight_decay=5e-4
     )
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    
+    if args.scheduler == "StepLR":
+        scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    elif args.scheduler == "CosineAnnealingLR":
+        scheduler = CosineAnnealingLR(optimizer, T_max=50)
+    elif args.scheduler == "CosineAnnealingWarmRestarts":
+        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=25, T_mult=2, eta_min=0)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -209,7 +215,7 @@ def train(data_dir, model_dir, args):
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
             loss = criterion(outs, labels)
-
+            
             loss.backward()
             optimizer.step()
 
@@ -238,25 +244,27 @@ def train(data_dir, model_dir, args):
             val_loss_items = []
             val_acc_items = []
             figure = None
-            for val_batch in val_loader:
-                inputs, labels = val_batch
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+            with tqdm(val_loader) as pbar:
+                for idx, val_batch in enumerate(pbar):
+                    inputs, labels = val_batch
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
 
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                    outs = model(inputs)
+                    preds = torch.argmax(outs, dim=-1)
 
-                loss_item = criterion(outs, labels).item()
-                acc_item = (labels == preds).sum().item()
-                val_loss_items.append(loss_item)
-                val_acc_items.append(acc_item)
+                    loss_item = criterion(outs, labels).item()
+                    acc_item = (labels == preds).sum().item()
+                    val_loss_items.append(loss_item)
+                    val_acc_items.append(acc_item)
 
-                if figure is None:
-                    inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
-                    inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
-                    figure = grid_image(
-                        inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
-                    )
+                    if figure is None:
+                        inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
+                        inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
+                        figure = grid_image(
+                            inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
+                        )
+                pbar.set_description("processing %s" % idx)
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
@@ -266,6 +274,7 @@ def train(data_dir, model_dir, args):
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+                counter = 0
             else:
                 counter+=1
                 print(f"No improving count : {counter}")
@@ -298,6 +307,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
     parser.add_argument('--sampler', type=str, default=None)
+    parser.add_argument('--scheduler', type=str, default="StepLR")
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
@@ -306,12 +316,12 @@ if __name__ == '__main__':
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
-    parser.add_argument('--patience', type=int, default=6, help='setting early stopping')
+    parser.add_argument('--patience', type=int, default=10, help='setting early stopping')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
-
+    parser.add_argument('--num_workers',type=int, default=0, help='window will use integer num workers')
     args = parser.parse_args()
     print(args)
 

@@ -9,6 +9,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -47,8 +49,49 @@ class AddGaussianNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+    
 
+class CustomAlbumentation:
+    """
+        Requirements
+        pip install typing-extensions==4.4.0
+        pip install opencv-python==4.6.0.66
+        pip install albumentations
+    """
+    def __init__(self, resize, mean, std, **args):
+        self.transform = A.Compose([
+            A.CenterCrop(320, 256, p=0.5),
+            # A.GridDistortion(),
+            A.Resize(*resize, Image.BILINEAR),
+            # A.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            A.HorizontalFlip(),
+            A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.1), contrast_limit=(-0.2, 0.2), p=0.5),
+            A.GaussNoise(),
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
 
+    def __call__(self, image):
+        return self.transform(image=np.array(image))['image']
+
+class T4073_Albumentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = A.Compose([
+            A.CenterCrop(320, 256),
+            # A.GridDistortion(),
+            A.Resize(*resize, Image.BILINEAR),
+            A.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            A.HorizontalFlip(),
+            A.Rotate(limit=30),
+            #A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.3, 0.3), p=0.5),
+            A.GaussNoise(),
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image=np.array(image))['image']
+    
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
@@ -297,6 +340,7 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose([
+            CenterCrop((320, 256)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),

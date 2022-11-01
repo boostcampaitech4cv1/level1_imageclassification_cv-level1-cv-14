@@ -6,6 +6,12 @@ from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 
+#pip install git+https://github.com/openai/CLIP.git
+#import clip 
+#from transformers import CLIPProcessor, CLIPModel
+#https://github.com/openai/CLIP
+
+#pip install vit_pytorch
 #from vit_pytorch import ViT
 #from vit_pytorch.extractor import Extractor
 
@@ -138,33 +144,20 @@ class MyVit(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        vit = ViT(
-            image_size = 128*128,
+        self.vit = ViT(
+            image_size = 256,
             patch_size = 32,
             num_classes = 1000,
             dim = 1024,
             depth = 6,
             heads = 16,
-            mlp_dim = 2048
-        )
-        self.vit = Extractor(vit, return_embeddings_only = True, detach = False)
-        self.net = nn.Sequential(
-            nn.Linear(17408, self.num_classes),
-            # nn.BatchNorm1d(1024),
-            # nn.LeakyReLU(0.05),
-            # nn.Dropout(0.4),
-            # nn.Linear(1024, 512),
-            # nn.BatchNorm1d(512),
-            # nn.LeakyReLU(0.05),
-            # nn.Dropout(0.4),
-            # nn.Linear(1024, self.num_classes),
-            # nn.Softmax(dim = -1),
+            mlp_dim = 2048,
+            dropout = 0.1,
+            emb_dropout = 0.1
         )
         
     def forward(self,x):
-        x_ = self.vit(x)
-        x_ = torch.flatten(x_, start_dim = 1)
-        out = self.net(x_)
+        out = self.vit(x)
         return out
     
 
@@ -173,7 +166,37 @@ class MyVit2(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         model_name = "vit_base_patch16_224"
-        # ViT model 생성 : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
+        
+        
+class MaxVit(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "maxvit_rmlp_tiny_rw_256"
+        self.maxvit = create_model(model_name, pretrained=True)
+        for param in self.maxvit.parameters():
+            param.requires_grad = False
+        self.maxvit.head.fc = nn.Linear(in_features=512, out_features=self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.maxvit(x)
+        return out
+    
+    
+class SwinV2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_relpos_base_patch16_clsgap_224"
         self.vit = create_model(model_name, pretrained=True)
         for param in self.vit.parameters():
             param.requires_grad = False
@@ -184,11 +207,104 @@ class MyVit2(nn.Module):
         out = self.vit(x)
         return out
     
+    
+class MyVitSAM(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch32_224_sam"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
+
+
 class MyVit384(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
         model_name = "vit_base_patch16_384"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
+        
+class MyVit32_384(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_base_patch32_384"
+        self.vit = create_model(model_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        self.input_f = self.vit.head.in_features
+        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.vit(x)
+        return out
+        
+class EfficientNetV2L(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        self.efficientnet_v2_l = torch.hub.load('hankyul2/EfficientNetV2-pytorch', 'efficientnet_v2_l', pretrained=True, nclass=self.num_classes)
+        for param in self.efficientnet_v2_l.parameters():
+            param.requires_grad = False
+        self.efficientnet_v2_l.head.classifier = nn.Linear(in_features=1280, out_features=self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.efficientnet_v2_l(x)
+        return out
+    
+class T4073_CLIP(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.features_mask = ["I can see the mouth", "There is no mask in photo", "I can see the nose", "mask covered nose and mouth"]
+        self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
+        self.features_age = [ "Person in photo looks like " + str(i) + " years old" for i in range(101)]
+        self.num_classes = num_classes
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.clip_model, _  = clip.load("ViT-B/32", device=self.device)
+        self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
+        
+    def _get_clip_embedding(self, imgs):
+        with torch.no_grad():
+            text_mask = clip.tokenize(self.features_mask).to(self.device)
+            text_gender = clip.tokenize(self.features_gender).to(self.device)
+            text_age = clip.tokenize(self.features_age).to(self.device)
+
+            logits_per_image_mask, _= self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
+            logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
+            logits_per_image_age, _ = self.clip_model(imgs, text_age)
+        
+        return logits_per_image_mask.float(), logits_per_image_gender.float(), logits_per_image_age.float()
+
+    def forward(self, x):
+        """
+        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
+        2. 결과로 나온 output 을 return 해주세요
+        """
+        emb_mask, emb_gender, emb_age = self._get_clip_embedding(x)
+        x_ = torch.cat([emb_mask, emb_gender, emb_age], dim = -1)
+        out = self.fc(x_)
+        return out
+    
+class MyVit_huge_14_224(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "vit_huge_patch14_224_in21k"
         self.vit = create_model(model_name, pretrained=True)
         for param in self.vit.parameters():
             param.requires_grad = False

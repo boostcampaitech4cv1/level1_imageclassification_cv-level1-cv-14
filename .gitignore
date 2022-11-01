@@ -162,3 +162,5 @@ cython_debug/
 CLIP/
 model/
 output/
+pretrained/
+test.ipynb
