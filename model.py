@@ -50,55 +50,55 @@ class BaseModel(nn.Module):
 
 
 # Custom Model Template
-class CustomClipLinear(nn.Module): # 쓰레기
-    def __init__(self, num_classes):
-        super().__init__()
-
-        """
-        1. 위와 같이 생성자의 parameter 에 num_claases 를 포함해주세요.
-        2. 나만의 모델 아키텍쳐를 디자인 해봅니다.
-        3. 모델의 output_dimension 은 num_classes 로 설정해주세요.
-        """
-        self.features = ["mask", "face", "nose", "cheek", "mouth", "chin", 'lips', "male", "man", "female", "woman", "under 30", "over 30 and under 60", "over 60"]
-        self.num_classes = num_classes
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
-        self.transform = Compose([
-            # Resize((224, 224)), # 필요하면
-            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
-        ])
-        self.net = nn.Sequential(
-            nn.Linear(len(self.features), 196),
-            nn.BatchNorm1d(196),
-            nn.LeakyReLU(0.05),
-            nn.Linear(196, self.num_classes),
-        )
-
-
-    def set_features(self, features):
-        self.features = features
-        self.linear = nn.Linear(len(self.features), self.num_classes)
-
-    def _get_cosine_score(self, imgs):
-        # GPU 메모리 약 1.5 GB 필요 --> 만일 부족하다면 clip.available_models() 명령어를 통해 가지고 오는 모델을 바꿀 수 있습니다
-        imgs = self.transform(imgs)
-        text = clip.tokenize(self.features).to(self.device)
-        with torch.no_grad():
-            # 모델에 image와 text 둘 다 input으로 넣고, 각 text와 image와의 유사도를 구합니다. 값이 클수록 유사합니다.
-            logits_per_image, _ = self.clip_model(imgs, text) # RGB (ex : (1, 3, 244, 244))
-            # 확률값으로 표현하기 위해 softmax 값을 구합니다.
-            probs = logits_per_image.softmax(dim=-1)
-        
-        return probs.float()
-
-    def forward(self, x):
-        """
-        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
-        2. 결과로 나온 output 을 return 해주세요
-        """
-        x_ = self._get_cosine_score(x)
-        out = self.net(x_)
-        return out
+#class CustomClipLinear(nn.Module): # 쓰레기
+#    def __init__(self, num_classes):
+#        super().__init__()
+#
+#        """
+#        1. 위와 같이 생성자의 parameter 에 num_claases 를 포함해주세요.
+#        2. 나만의 모델 아키텍쳐를 디자인 해봅니다.
+#        3. 모델의 output_dimension 은 num_classes 로 설정해주세요.
+#        """
+#        self.features = ["mask", "face", "nose", "cheek", "mouth", "chin", 'lips', "male", "man", "female", "woman", "under 30", "over 30 and under 60", "over 60"]
+#        self.num_classes = num_classes
+#        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+#        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
+#        self.transform = Compose([
+#            # Resize((224, 224)), # 필요하면
+#            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+#        ])
+#        self.net = nn.Sequential(
+#            nn.Linear(len(self.features), 196),
+#            nn.BatchNorm1d(196),
+#            nn.LeakyReLU(0.05),
+#            nn.Linear(196, self.num_classes),
+#        )
+#
+#
+#    def set_features(self, features):
+#        self.features = features
+#        self.linear = nn.Linear(len(self.features), self.num_classes)
+#
+#    def _get_cosine_score(self, imgs):
+#        # GPU 메모리 약 1.5 GB 필요 --> 만일 부족하다면 clip.available_models() 명령어를 통해 가지고 오는 모델을 바꿀 수 있습니다
+#        imgs = self.transform(imgs)
+#        text = clip.tokenize(self.features).to(self.device)
+#        with torch.no_grad():
+#            # 모델에 image와 text 둘 다 input으로 넣고, 각 text와 image와의 유사도를 구합니다. 값이 클수록 유사합니다.
+#            logits_per_image, _ = self.clip_model(imgs, text) # RGB (ex : (1, 3, 244, 244))
+#            # 확률값으로 표현하기 위해 softmax 값을 구합니다.
+#            probs = logits_per_image.softmax(dim=-1)
+#        
+#        return probs.float()
+#
+#    def forward(self, x):
+#        """
+#        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
+#        2. 결과로 나온 output 을 return 해주세요
+#        """
+#        x_ = self._get_cosine_score(x)
+#        out = self.net(x_)
+#        return out
 
 
 class EfficientB4(nn.Module):
@@ -140,25 +140,25 @@ class EfficientB7(nn.Module):
         out = self.efficient(x)
         return out
     
-class MyVit(nn.Module):
-    def __init__(self, num_classes):
-        super().__init__()
-        self.num_classes = num_classes
-        self.vit = ViT(
-            image_size = 256,
-            patch_size = 32,
-            num_classes = 1000,
-            dim = 1024,
-            depth = 6,
-            heads = 16,
-            mlp_dim = 2048,
-            dropout = 0.1,
-            emb_dropout = 0.1
-        )
-        
-    def forward(self,x):
-        out = self.vit(x)
-        return out
+#class MyVit(nn.Module):
+#    def __init__(self, num_classes):
+#        super().__init__()
+#        self.num_classes = num_classes
+#        self.vit = ViT(
+#            image_size = 256,
+#            patch_size = 32,
+#            num_classes = 1000,
+#            dim = 1024,
+#            depth = 6,
+#            heads = 16,
+#            mlp_dim = 2048,
+#            dropout = 0.1,
+#            emb_dropout = 0.1
+#        )
+#        
+#    def forward(self,x):
+#        out = self.vit(x)
+#        return out
     
 
 class MyVit2(nn.Module):
@@ -267,50 +267,50 @@ class EfficientNetV2L(nn.Module):
         out = self.efficientnet_v2_l(x)
         return out
     
-class T4073_CLIP(nn.Module):
-    def __init__(self, num_classes):
-        super().__init__()
-        self.features_mask = ["I can see the mouth", "There is no mask in photo", "I can see the nose", "mask covered nose and mouth"]
-        self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
-        self.features_age = [ "Person in photo looks like " + str(i) + " years old" for i in range(101)]
-        self.num_classes = num_classes
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.clip_model, _  = clip.load("ViT-B/32", device=self.device)
-        self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
-        
-    def _get_clip_embedding(self, imgs):
-        with torch.no_grad():
-            text_mask = clip.tokenize(self.features_mask).to(self.device)
-            text_gender = clip.tokenize(self.features_gender).to(self.device)
-            text_age = clip.tokenize(self.features_age).to(self.device)
-
-            logits_per_image_mask, _= self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
-            logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
-            logits_per_image_age, _ = self.clip_model(imgs, text_age)
-        
-        return logits_per_image_mask.float(), logits_per_image_gender.float(), logits_per_image_age.float()
-
-    def forward(self, x):
-        """
-        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
-        2. 결과로 나온 output 을 return 해주세요
-        """
-        emb_mask, emb_gender, emb_age = self._get_clip_embedding(x)
-        x_ = torch.cat([emb_mask, emb_gender, emb_age], dim = -1)
-        out = self.fc(x_)
-        return out
+#class T4073_CLIP(nn.Module):
+#    def __init__(self, num_classes):
+#        super().__init__()
+#        self.features_mask = ["I can see the mouth", "There is no mask in photo", "I can see the nose", "mask covered nose and mouth"]
+#        self.features_gender = ["male", "man","boy","grand father" "female", "woman","girl", "grand mother"]
+#        self.features_age = [ "Person in photo looks like " + str(i) + " years old" for i in range(101)]
+#        self.num_classes = num_classes
+#        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+#        self.clip_model, _  = clip.load("ViT-B/32", device=self.device)
+#        self.fc = nn.Linear(len(self.features_mask) + len(self.features_gender) + len(self.features_age), self.num_classes)
+#        
+#    def _get_clip_embedding(self, imgs):
+#        with torch.no_grad():
+#            text_mask = clip.tokenize(self.features_mask).to(self.device)
+#            text_gender = clip.tokenize(self.features_gender).to(self.device)
+#            text_age = clip.tokenize(self.features_age).to(self.device)
+#
+#            logits_per_image_mask, _= self.clip_model(imgs, text_mask) # RGB (ex : (1, 3, 244, 244))
+#            logits_per_image_gender, _ = self.clip_model(imgs, text_gender)
+#            logits_per_image_age, _ = self.clip_model(imgs, text_age)
+#        
+#        return logits_per_image_mask.float(), logits_per_image_gender.float(), logits_per_image_age.float()
+#
+#    def forward(self, x):
+#        """
+#        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
+#        2. 결과로 나온 output 을 return 해주세요
+#        """
+#        emb_mask, emb_gender, emb_age = self._get_clip_embedding(x)
+#        x_ = torch.cat([emb_mask, emb_gender, emb_age], dim = -1)
+#        out = self.fc(x_)
+#        return out
     
-class MyVit_huge_14_224(nn.Module):
-    def __init__(self, num_classes):
-        super().__init__()
-        self.num_classes = num_classes
-        model_name = "vit_huge_patch14_224_in21k"
-        self.vit = create_model(model_name, pretrained=True)
-        for param in self.vit.parameters():
-            param.requires_grad = False
-        self.input_f = self.vit.head.in_features
-        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
-
-    def forward(self,x):
-        out = self.vit(x)
-        return out
+#class MyVit_huge_14_224(nn.Module):
+#    def __init__(self, num_classes):
+#        super().__init__()
+#        self.num_classes = num_classes
+#        model_name = "vit_huge_patch14_224_in21k"
+#        self.vit = create_model(model_name, pretrained=True)
+#        for param in self.vit.parameters():
+#            param.requires_grad = False
+#        self.input_f = self.vit.head.in_features
+#        self.vit.head = nn.Linear(self.input_f, self.num_classes, bias=True)
+#
+#    def forward(self,x):
+#        out = self.vit(x)
+#        return out
