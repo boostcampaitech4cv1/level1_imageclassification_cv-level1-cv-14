@@ -8,14 +8,14 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from dataset import Age_only_Dataset
+from dataset import age_TestDataset
 from PIL import Image
 import albumentations as A
 
 from coral import resnet34
 
 def get_age_class(age):
-    return 0 if age < 30 else 1 if age < 60 else 2
+    return 0 if age < 30 else 1 if age < 59 else 2
 
 def load_model(saved_model, num_classes, device):
     model_cls = getattr(import_module("model"), args.model)
@@ -41,20 +41,20 @@ def inference(data_dir, model_dir, output_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     #num_classes = MaskBaseDataset.num_classes  # 18
-    model = load_model(model_dir, 6, device).to(device)
+    model = load_model('./model/6_class_vit_32batch', 6, device).to(device)
     model.eval()
     
     #age_model = resnet34(55, False).cuda()
     #age_model.load_state_dict(torch.load('./model/CORAL2020/best_model.pt', map_location='cuda'))
-    age_model = load_model('./model/105class_age_label', 105, device).to(device)
+    age_model = load_model('./model/105class_age_focal', 105, device).to(device)
     age_model.eval()
     
-    img_root = os.path.join(data_dir, 'images')
-    info_path = os.path.join(data_dir, 'info.csv')
+    img_root = os.path.join('../EDA/eval', 'images')
+    info_path = os.path.join('../EDA/eval', 'info.csv')
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = Age_only_Dataset(img_paths, args.resize)
+    dataset = age_TestDataset(img_paths, args.resize)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -68,16 +68,18 @@ def inference(data_dir, model_dir, output_dir, args):
     preds = []
     
     with tqdm(loader) as pbar:
-        for idx, images in enumerate(loader):
+        for idx, images in enumerate(pbar):
             with torch.no_grad():
                 images = images.to(device)
                 pred = model(images)
                 pred = pred.argmax(dim=-1)
+                pred = pred.cpu()
                 age_pred = age_model(images)
                 age_pred = age_pred.argmax(dim=-1)
-                
+                age_pred = age_pred.cpu()
                 print(age_pred)
-                pred = pred * 3 + get_age_class(age_pred)
+                pred = pred * 3 + age_pred.apply_(lambda x: get_age_class(x))
+                print(pred)
                 preds.extend(pred.cpu().numpy())
             pbar.set_description("processing %s" % idx)
 
@@ -98,7 +100,7 @@ if __name__ == '__main__':
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '../EDA/eval'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/6_class_vit_32batch'))
-    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output/Age_Detach_atrain105'))
+    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output/Age_Detach_atrain105_focal'))
 
     args = parser.parse_args()
 
