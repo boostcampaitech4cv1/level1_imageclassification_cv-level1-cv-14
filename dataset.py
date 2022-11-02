@@ -354,7 +354,7 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         if resize:
             self.transform = A.Compose([
-                A.CenterCrop(320, 256),
+                A.CenterCrop(380, 256),
                 A.Resize(*resize, Image.BILINEAR),
                 A.Normalize(mean=mean, std=std),
                 ToTensorV2(),
@@ -406,7 +406,7 @@ class age_augmentation(Dataset):
 class ValidAugmentation:
     def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.transform = A.Compose([
-            A.CenterCrop(320, 256),
+            A.CenterCrop(380, 256),
             A.Resize(*resize, Image.BILINEAR),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
@@ -526,7 +526,7 @@ class Age_only_Dataset(Dataset):
 class ImageToTensor:
     def __init__(self, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.transform = A.Compose([
-            A.CenterCrop(320, 256),
+            A.CenterCrop(380, 256),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])

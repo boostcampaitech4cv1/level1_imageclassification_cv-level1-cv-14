@@ -180,9 +180,11 @@ def train(data_dir, model_dir, args):
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    # criterion = create_criterion(args.criterion)  # default: cross_entropy
-    loss_fn_1 = create_criterion("cross_entropy")  # default: cross_entropy
-    loss_fn_2 = create_criterion("f1")  # default: cross_entropy
+    if args.criterion=="f1":
+        loss_fn_1 = create_criterion("cross_entropy")  # default: cross_entropy
+        loss_fn_2 = create_criterion("f1")  # default: cross_entropy
+    else:
+        criterion = create_criterion(args.criterion)  # default: cross_entropy
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -219,12 +221,14 @@ def train(data_dir, model_dir, args):
 
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
-            # loss = criterion(outs, labels)
-            # loss.backward()
-            ce_loss = loss_fn_1(outs, labels)
-            f1_loss = loss_fn_2(outs, labels)
-            loss = (ce_loss + f1_loss)
-            loss.backward()
+            if args.criterion=='f1':
+                ce_loss = loss_fn_1(outs, labels)
+                f1_loss = loss_fn_2(outs, labels)
+                loss = (ce_loss + f1_loss)
+                loss.backward()
+            else:
+                loss = criterion(outs, labels)
+                loss.backward()
             
              # -- Gradient Accumulation
             if (idx+1) % accumulation_steps == 0:
@@ -265,10 +269,12 @@ def train(data_dir, model_dir, args):
                     outs = model(inputs)
                     preds = torch.argmax(outs, dim=-1)
 
-                    # loss_item = criterion(outs, labels).item()
-                    ce_loss = loss_fn_1(outs, labels)
-                    f1_loss = loss_fn_2(outs, labels)
-                    loss = (ce_loss + f1_loss)
+                    if args.criterion=='f1':
+                        ce_loss = loss_fn_1(outs, labels)
+                        f1_loss = loss_fn_2(outs, labels)
+                        loss = (ce_loss + f1_loss)
+                    else:
+                        loss = criterion(outs, labels)
                     loss_item = loss.item()
                     
                     acc_item = (labels == preds).sum().item()
