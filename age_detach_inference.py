@@ -15,7 +15,7 @@ import albumentations as A
 from coral import resnet34
 
 def get_age_class(age):
-    return 0 if age < 30 else 1 if age < 59 else 2
+    return 0 if age < 30 else 1 if age < 58 else 2
 
 def load_model(saved_model, num_classes, device):
     model_cls = getattr(import_module("model"), args.model)
@@ -49,8 +49,8 @@ def inference(data_dir, model_dir, output_dir, args):
     age_model = load_model('./model/105class_age_focal', 105, device).to(device)
     age_model.eval()
     
-    img_root = os.path.join('../EDA/eval', 'images')
-    info_path = os.path.join('../EDA/eval', 'info.csv')
+    img_root = os.path.join('../input/data/eval', 'images')
+    info_path = os.path.join('../input/data/eval', 'info.csv')
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='MyVit384', help='model type (default: MyVit384)')
 
     # Container environment
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '../EDA/eval'))
+    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '../input/data/eval'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/6_class_vit_32batch'))
     parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output/Age_Detach_atrain105_focal'))
 

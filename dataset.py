@@ -518,7 +518,7 @@ class Age_only_Dataset(Dataset):
         return train_set, val_set
     
 class Age43_only_Dataset(Dataset):
-    num_classes = 105
+    num_classes = 43
 
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -559,7 +559,7 @@ class Age43_only_Dataset(Dataset):
                 mask_label = self._file_names[_file_name]
 
                 id, gender, race, age = profile.split("_")
-                age_label = AgeLabels_105.from_number(age)
+                age_label = AgeLabels_105.from_number(int(age) - 18)
                 self.image_paths.append(img_path)
                 self.age_labels.append(age_label)
 

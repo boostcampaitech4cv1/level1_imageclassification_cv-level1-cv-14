@@ -216,9 +216,7 @@ def train(data_dir, model_dir, args):
             optimizer.zero_grad()
 
             outs = model(inputs)
-            #print("out.shape ", outs.shape)
             preds = torch.argmax(outs, dim=-1)
-            #print("preds", preds)
             loss = criterion(outs, labels)
             
             loss.backward()
@@ -260,9 +258,7 @@ def train(data_dir, model_dir, args):
 
                     outs = model(inputs)
                     preds= torch.argmax(outs, dim=-1)
-                    print(preds.shape)
                     preds = preds + 18
-                    print(preds)
                     loss_item = criterion(outs, labels).item()
                     acc_item = (labels == preds).sum().item()
                     val_loss_items.append(loss_item)
