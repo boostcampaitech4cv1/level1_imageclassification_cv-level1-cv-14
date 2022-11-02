@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from torch.nn import CosineSimilarity as CosSim
 from torchvision.transforms import Resize, Normalize, Compose
-from torchvision.models import efficientnet_b4, efficientnet_b7
+from torchvision.models import efficientnet_b7
 
 #pip install git+https://github.com/openai/CLIP.git
 #import clip 
@@ -101,23 +101,48 @@ class BaseModel(nn.Module):
 #        return out
 
 
+class MixNet(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "mixnet_l"
+        self.model = create_model(model_name, pretrained=True)
+        for param in self.model.parameters():
+            param.requires_grad = False
+        self.model.classifier = nn.Linear(1536, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.model(x)
+        return out
+    
+    
+class SENet154(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.num_classes = num_classes
+        model_name = "gluon_senet154"
+        self.model = create_model(model_name, pretrained=True)
+        for param in self.model.parameters():
+            param.requires_grad = False
+        self.model.fc = nn.Linear(2048, self.num_classes, bias=True)
+
+    def forward(self,x):
+        out = self.model(x)
+        return out
+    
+    
 class EfficientB4(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.num_classes = num_classes
-        self.efficient = efficientnet_b4(pretrained=True)
-        for param in self.efficient.parameters():
+        model_name = "efficientnet_b4"
+        self.model = create_model(model_name, pretrained=True)
+        for param in self.model.parameters():
             param.requires_grad = False
-        self.efficient.classifier[1] = nn.Linear(1792, self.num_classes)
-        # self.efficient.classifier = nn.Sequential(
-        #     nn.Linear(1792, 1792),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout1d(0.4),
-        #     nn.Linear(1792, self.num_classes),
-        # )
+        self.model.classifier = nn.Linear(1792, self.num_classes, bias=True)
 
-    def forward(self, x):
-        out = self.efficient(x)
+    def forward(self,x):
+        out = self.model(x)
         return out
 
 
@@ -129,12 +154,6 @@ class EfficientB7(nn.Module):
         for param in self.efficient.parameters():
             param.requires_grad = False
         self.efficient.classifier[1] = nn.Linear(2560, self.num_classes)
-        # self.efficient.classifier = nn.Sequential(
-        #     nn.Linear(2560, 2560),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout1d(0.4),
-        #     nn.Linear(2560, self.num_classes),
-        # )
 
     def forward(self, x):
         out = self.efficient(x)
@@ -239,6 +258,7 @@ class MyVit384(nn.Module):
         out = self.vit(x)
         return out
         
+        
 class MyVit32_384(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -253,6 +273,7 @@ class MyVit32_384(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
+        
         
 class EfficientNetV2L(nn.Module):
     def __init__(self, num_classes):

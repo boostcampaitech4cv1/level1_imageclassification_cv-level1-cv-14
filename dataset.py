@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomHorizontalFlip
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
@@ -68,7 +68,6 @@ class CustomAlbumentation:
                 A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), p=1),
             ], p=0.7),
             A.OneOf([
-                A.GaussianBlur((3, 5), p=1),
                 A.OpticalDistortion(p=1),
                 A.GridDistortion(p=1),
                 A.GaussNoise(var_limit=(200, 400), p=1),
@@ -353,18 +352,21 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
+        if resize:
+            self.transform = A.Compose([
+                A.CenterCrop(320, 256),
+                A.Resize(*resize, Image.BILINEAR),
+                A.Normalize(mean=mean, std=std),
+                ToTensorV2(),
+            ])
+        else:
+            self.transform = ImageToTensor(mean=mean, std=std)
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
 
         if self.transform:
-            image = self.transform(image)
+            image = self.transform(image=np.array(image))['image']
         return image
 
     def __len__(self):
@@ -400,8 +402,9 @@ class age_augmentation(Dataset):
     def __call__(self, image):
         return self.transform(image)
     
+
 class ValidAugmentation:
-    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.transform = A.Compose([
             A.CenterCrop(320, 256),
             A.Resize(*resize, Image.BILINEAR),
@@ -519,3 +522,33 @@ class Age_only_Dataset(Dataset):
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
+
+class ImageToTensor:
+    def __init__(self, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.transform = A.Compose([
+            A.CenterCrop(320, 256),
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image=image)
+    
+    
+def TTA(resize, crop_size=[320, 256]):    
+    center_crop = Compose([
+        CenterCrop(crop_size),
+        Resize(resize, Image.BILINEAR),
+    ])
+    horizon_flip = Compose([
+        RandomHorizontalFlip(p=1),
+        Resize(resize, Image.BILINEAR),
+    ])
+    center_horizon = Compose([
+        CenterCrop(crop_size),
+        RandomHorizontalFlip(p=1),
+        Resize(resize, Image.BILINEAR),
+    ])
+    image_resize = Resize(resize, Image.BILINEAR)
+
+    return center_crop, horizon_flip, center_horizon, image_resize
