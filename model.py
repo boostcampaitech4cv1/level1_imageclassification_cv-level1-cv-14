@@ -7,6 +7,10 @@ from torchvision.transforms import Resize, Normalize, Compose
 from torchvision.models import efficientnet_b4, efficientnet_b7
 from loss import ArcMarginProduct
 
+#seo
+#pip install deepface
+import deepface import DeepFace
+
 #pip install git+https://github.com/openai/CLIP.git
 #import clip 
 #from transformers import CLIPProcessor, CLIPModel
@@ -359,8 +363,8 @@ class Vit384_arcface(nn.Module):
             param.requires_grad = False
         self.input_f = self.vit.head.in_features
         print(self.input_f)
-        self.vit.head = nn.Linear(self.input_f, 500, bias=True)
-        self.arc = ArcMarginProduct(500,num_classes)
+        self.vit.head = nn.Linear(self.input_f, 1000, bias=True)
+        self.arc = ArcMarginProduct(1000,num_classes)
 
     def forward(self,x,label,train):
         out = self.vit(x)
@@ -382,35 +386,3 @@ class EfficientB7_arcface(nn.Module):
         out = self.efficient(x)
         out = self.arc(x,label,train)
         return out
-    
-# class test(nn.Module):
-#     def __init__(self, num_classes):
-#         super().__init__()
-#         self.conv1 = nn.Conv2d(3, 32, kernel_size=7, stride=1)
-#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1)
-#         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1)
-#         self.dropout1 = nn.Dropout(0.25)
-#         self.dropout2 = nn.Dropout(0.25)
-#         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-#         self.fc = nn.Linear(128, num_classes)
-#         self.arc = ArcMarginProduct(num_classes,num_classes)
-
-#     def forward(self, x,label,train):
-#         x = self.conv1(x)
-#         x = F.relu(x)
-
-#         x = self.conv2(x)
-#         x = F.relu(x)
-#         x = F.max_pool2d(x, 2)
-#         x = self.dropout1(x)
-
-#         x = self.conv3(x)
-#         x = F.relu(x)
-#         x = F.max_pool2d(x, 2)
-#         x = self.dropout2(x)
-
-#         x = self.avgpool(x)
-#         x = x.view(-1, 128)
-#         x = self.fc(x)
-#         x = self.arc(x,label,train)
-#         return x
