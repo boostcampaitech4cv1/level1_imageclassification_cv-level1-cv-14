@@ -43,9 +43,13 @@ def inference(data_dir, model_dir, output_dir, args):
     num_classes = MaskBaseDataset.num_classes  # 18
     if args.ensemble:
         # ViT384
-        vit_model = load_model('./model/vit384-wrs-alb3-1', num_classes, device, 'MyVit384').to(device)
+        vit_model = load_model('./model/vit384_mingi', 6, device, 'MyVit384').to(device)
         vit_model.eval()
         vit_resize = Resize([384, 384])
+        # SwinV2
+        # swin_model = load_model('./model/swinv2-alb-2', num_classes, device, 'SwinV2').to(device)
+        # swin_model.eval()
+        # swin_resize = Resize([224, 224])
         # Efficient B4
         efficient_model = load_model('./model/effib4-alb-2', num_classes, device, 'EfficientB4').to(device)
         efficient_model.eval()
@@ -55,9 +59,9 @@ def inference(data_dir, model_dir, output_dir, args):
         senet_model.eval()
         senet_resize = Resize([224, 224])
         # MixNet
-        mixnet_model = load_model('./model/mixnet-alb-2', num_classes, device, 'MixNet').to(device)
-        mixnet_model.eval()
-        mixnet_resize = Resize([224, 224])
+        # mixnet_model = load_model('./model/mixnet-alb-2', num_classes, device, 'MixNet').to(device)
+        # mixnet_model.eval()
+        # mixnet_resize = Resize([224, 224])
         args.resize = None
     else:
         model = load_model(model_dir, num_classes, device, args.model).to(device)
@@ -65,8 +69,10 @@ def inference(data_dir, model_dir, output_dir, args):
         
     if args.age_model:
         # ViT(only age)
-        age_model = load_model('./model/age_focal', 43, device, 'MyVit384').to(device)
-        age_model.eval()
+        age_vit = load_model('./model/43_class_vit_ori', 43, device, 'MyVit384').to(device)
+        age_vit.eval()
+        age_senet = load_model('./model/43_class_senet', 43, device, 'SENet154').to(device)
+        age_senet.eval()
 
     img_root = os.path.join(data_dir, 'images')
     info_path = os.path.join(data_dir, 'info.csv')
@@ -93,26 +99,32 @@ def inference(data_dir, model_dir, output_dir, args):
                 # sum pred
                 if args.ensemble:
                     pred = vit_model(vit_resize(images))
-                    pred += efficient_model(efficient_resize(images))
+                    only_gender = torch.repeat_interleave(pred, 3, dim=1) # classes 6 x 3
+                    # pred = swin_model(swin_resize(images))
+                    pred = only_gender + efficient_model(efficient_resize(images))
                     pred += senet_model(senet_resize(images))
-                    pred += mixnet_model(mixnet_resize(images))
+                    # pred += mixnet_model(mixnet_resize(images))
                 else:
                     pred = model(images)
                     
                 pred = pred.argmax(dim=-1)
                 pred = pred.cpu()
+                only_gender = only_gender.argmax(dim=-1)
+                only_gender = only_gender.cpu()
+                
                 if args.age_model:
                     # age pred
                     if args.ensemble:
-                        age_pred = age_model(vit_resize(images))
+                        age_pred = age_vit(vit_resize(images))
+                        age_pred += age_senet(senet_resize(images))
                     else:
-                        age_pred = age_model(images)
+                        age_pred = age_vit(images)
                     age_pred = age_pred.argmax(dim=-1)
                     age_pred = age_pred.cpu()
                     age_pred = age_pred.apply_(lambda x: get_age_class(x))
                     # calc classes
                     mask_pred = torch.div(pred, 6, rounding_mode='trunc') % 3
-                    gender_pred = torch.div(pred, 3, rounding_mode='trunc') % 2
+                    gender_pred = torch.div(only_gender, 3, rounding_mode='trunc') % 2
                     pred = mask_pred * 6 + gender_pred * 3 + age_pred
                 
                 preds.extend(pred.cpu().numpy())
@@ -132,12 +144,35 @@ def validation(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     num_classes = MaskBaseDataset.num_classes  # 18
-    model = load_model(model_dir, num_classes, device).to(device)
-    model.eval()
+    if args.ensemble:
+        # ViT384
+        vit_model = load_model('./model/vit384_donghun', num_classes, device, 'MyVit384').to(device)
+        vit_model.eval()
+        vit_resize = Resize([384, 384])
+        # SwinV2
+        vit2_model = load_model('./model/swinv2-alb-2', num_classes, device, 'SwinV2').to(device)
+        vit2_model.eval()
+        vit2_resize = Resize([224, 224])
+        # Efficient B4
+        efficient_model = load_model('./model/effib4-alb-2', num_classes, device, 'EfficientB4').to(device)
+        efficient_model.eval()
+        efficient_resize = Resize([380, 380])
+        # SENet
+        senet_model = load_model('./model/senet-alb-2', num_classes, device, 'SENet154').to(device)
+        senet_model.eval()
+        senet_resize = Resize([224, 224])
+        # MixNet
+        mixnet_model = load_model('./model/mixnet-alb-2', num_classes, device, 'MixNet').to(device)
+        mixnet_model.eval()
+        mixnet_resize = Resize([224, 224])
+        args.resize = None
+    else:
+        model = load_model(model_dir, num_classes, device, args.model).to(device)
+        model.eval()
     
     dataset = MaskBaseDataset(data_dir='/opt/ml/input/data/train/images')
     _, val_set = dataset.split_dataset()
-    transform = ValidAugmentation() # ImageToTensor
+    transform = ValidAugmentation(resize=None) # ImageToTensor
     val_set.dataset.set_transform(transform)
     
     val_loader = DataLoader(
@@ -149,36 +184,43 @@ def validation(data_dir, model_dir, args):
         drop_last=True,
     )
     
-    # if args.tta:
-    #     center_crop, horizon_flip, center_horizon, image_resize = TTA(args.resize, [320, 256])
-    
     with torch.no_grad():
         print("Calculating validation results...")
-        model.eval()
-        val_acc_items = []
+        mask_acc_items = []
+        gender_acc_items = []
         with tqdm(val_loader) as pbar:
             for idx, val_batch in enumerate(pbar):
                 images, labels = val_batch
                 images = images.to(device)
                 labels = labels.to(device)
                 
-                # if args.tta:
-                #     pred = model(image_resize(images)) / 4
-                #     pred += model(center_crop(images)) / 4
-                #     pred += model(horizon_flip(images)) / 4
-                #     pred += model(center_horizon(images)) / 4
-                # else:
-                #     pred = model(image_resize(images))
+                # sum pred
+                if args.ensemble:
+                    pred = vit_model(vit_resize(images))
+                    # pred = torch.repeat_interleave(pred, 3, dim=1)
+                    # pred += vit2_model(vit2_resize(images))
+                    pred += efficient_model(efficient_resize(images))
+                    pred += senet_model(senet_resize(images))
+                    pred += mixnet_model(mixnet_resize(images))
+                else:
+                    pred = model(images)
+                    
+                pred = pred.argmax(dim=-1)
+                mask_pred = torch.div(pred, 6, rounding_mode='trunc') % 3
+                gender_pred = torch.div(pred, 3, rounding_mode='trunc') % 2
+                mask_label = torch.div(labels, 6, rounding_mode='trunc') % 3
+                gender_label = torch.div(labels, 3, rounding_mode='trunc') % 2
                 
-                pred = model(images)
-                preds = torch.argmax(pred, dim=-1)
-                
-                acc_item = (labels == preds).sum().item()
-                val_acc_items.append(acc_item)
+                mask_acc_item = (mask_label == mask_pred).sum().item()
+                mask_acc_items.append(mask_acc_item)
+                gender_acc_item = (gender_label == gender_pred).sum().item()
+                gender_acc_items.append(gender_acc_item)
             pbar.set_description("processing %s" % idx)
 
-        val_acc = np.sum(val_acc_items) / len(val_set)
-        print(f"Best model for val accuracy : {val_acc:4.2%}")
+        mask_acc = np.sum(mask_acc_items) / len(val_set)
+        gender_acc = np.sum(gender_acc_items) / len(val_set)
+        print(f"Mask val accuracy : {mask_acc:4.2%}")
+        print(f"Gender val accuracy : {gender_acc:4.2%}")
 
 
 if __name__ == '__main__':
@@ -206,6 +248,6 @@ if __name__ == '__main__':
     os.makedirs(output_dir, exist_ok=True)
 
     if args.valid:
-        validation(data_dir, model_dir, output_dir, args)
+        validation(data_dir, model_dir, args)
     else:
         inference(data_dir, model_dir, output_dir, args)

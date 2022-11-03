@@ -405,12 +405,15 @@ class age_augmentation(Dataset):
 
 class ValidAugmentation:
     def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
-        self.transform = A.Compose([
-            A.CenterCrop(380, 256),
-            A.Resize(*resize, Image.BILINEAR),
-            A.Normalize(mean=mean, std=std),
-            ToTensorV2(),
-        ])
+        if resize:
+            self.transform = A.Compose([
+                A.CenterCrop(380, 256),
+                A.Resize(*resize, Image.BILINEAR),
+                A.Normalize(mean=mean, std=std),
+                ToTensorV2(),
+            ])
+        else:
+            self.transform = ImageToTensor(mean=mean, std=std)
 
     def __call__(self, image):
         return self.transform(image=np.array(image))['image']
@@ -526,8 +529,8 @@ class Age_only_Dataset(Dataset):
 class ImageToTensor:
     def __init__(self, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.transform = A.Compose([
-            A.CenterCrop(380, 256),
             A.Normalize(mean=mean, std=std),
+            A.CenterCrop(380, 256),
             ToTensorV2(),
         ])
 
