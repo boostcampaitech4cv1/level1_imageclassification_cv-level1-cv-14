@@ -238,7 +238,7 @@ class MyVit384(nn.Module):
     def forward(self,x):
         out = self.vit(x)
         return out
-        
+    
 class MyVit32_384(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
