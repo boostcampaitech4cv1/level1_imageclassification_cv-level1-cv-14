@@ -59,9 +59,9 @@ def inference(data_dir, model_dir, output_dir, args):
         senet_model.eval()
         senet_resize = Resize([224, 224])
         # MixNet
-        # mixnet_model = load_model('./model/mixnet-alb-2', num_classes, device, 'MixNet').to(device)
-        # mixnet_model.eval()
-        # mixnet_resize = Resize([224, 224])
+        mixnet_model = load_model('./model/mixnet-alb-2', num_classes, device, 'MixNet').to(device)
+        mixnet_model.eval()
+        mixnet_resize = Resize([224, 224])
         args.resize = None
     else:
         model = load_model(model_dir, num_classes, device, args.model).to(device)
@@ -73,8 +73,8 @@ def inference(data_dir, model_dir, output_dir, args):
         age_vit.eval()
         age_senet = load_model('./model/43_class_senet', 43, device, 'SENet154').to(device)
         age_senet.eval()
-        age_facenet = load_model('./model/43_facenet', 43, device, 'InceptionResnet').to(device)
-        age_facenet.eval()
+        # age_facenet = load_model('./model/43_facenet', 43, device, 'InceptionResnet').to(device)
+        # age_facenet.eval()
         facenet_resize = Resize([112, 112])
 
     img_root = os.path.join(data_dir, 'images')
@@ -102,9 +102,9 @@ def inference(data_dir, model_dir, output_dir, args):
                 # sum pred
                 if args.ensemble:
                     pred = vit_model(vit_resize(images))
-                    only_gender = torch.repeat_interleave(pred, 3, dim=1) # classes 6 x 3
+                    pred = torch.repeat_interleave(pred, 3, dim=1) # classes 6 x 3
                     # pred = swin_model(swin_resize(images))
-                    pred = only_gender + efficient_model(efficient_resize(images))
+                    pred += efficient_model(efficient_resize(images))
                     pred += senet_model(senet_resize(images))
                     # pred += mixnet_model(mixnet_resize(images))
                 else:
@@ -112,15 +112,12 @@ def inference(data_dir, model_dir, output_dir, args):
                     
                 pred = pred.argmax(dim=-1)
                 pred = pred.cpu()
-                only_gender = only_gender.argmax(dim=-1)
-                only_gender = only_gender.cpu()
                 
                 if args.age_model:
                     # age pred
                     if args.ensemble:
                         age_pred = age_vit(vit_resize(images))
                         age_pred += age_senet(senet_resize(images))
-                        age_pred += age_facenet(facenet_resize(images))
                     else:
                         age_pred = age_vit(images)
                     age_pred = age_pred.argmax(dim=-1)
@@ -128,7 +125,7 @@ def inference(data_dir, model_dir, output_dir, args):
                     age_pred = age_pred.apply_(lambda x: get_age_class(x))
                     # calc classes
                     mask_pred = torch.div(pred, 6, rounding_mode='trunc') % 3
-                    gender_pred = torch.div(only_gender, 3, rounding_mode='trunc') % 2
+                    gender_pred = torch.div(pred, 3, rounding_mode='trunc') % 2
                     pred = mask_pred * 6 + gender_pred * 3 + age_pred
                 
                 preds.extend(pred.cpu().numpy())
