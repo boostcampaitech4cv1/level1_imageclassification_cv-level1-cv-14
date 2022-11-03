@@ -17,6 +17,15 @@ from torch.utils.checkpoint import checkpoint
 #from vit_pytorch import ViT
 #from vit_pytorch.extractor import Extractor
 
+from facenet_pytorch import MTCNN, InceptionResnetV1, fixed_image_standardization, training
+import torch
+from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch import optim
+from torch.optim.lr_scheduler import MultiStepLR
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import datasets, transforms
+import numpy as np
+import os
 from timm import create_model
 
 class BaseModel(nn.Module):
@@ -512,4 +521,17 @@ class IResNet_SEO(nn.Module):
     def forward(self,x):
         out = self.IResNetSEO(x)
         out = self.fc1(out)
+        return out
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if use_cuda else "cpu")
+class InceptionResnet(nn.Module):
+    def __init__(self, num_classes):
+        super(InceptionResnet, self).__init__()
+        self.resnet = InceptionResnetV1(
+            classify=True,
+            pretrained='vggface2',
+            num_classes=num_classes
+        )
+    def forward(self,x):
+        out = self.resnet(x)
         return out

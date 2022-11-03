@@ -21,7 +21,16 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset import MaskBaseDataset
 from loss import create_criterion
 
-
+#seo------------
+from facenet_pytorch import MTCNN, InceptionResnetV1, fixed_image_standardization, training
+import torch
+from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch import optim
+from torch.optim.lr_scheduler import MultiStepLR
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import datasets, transforms
+import numpy as np
+import os
 
 Is_Windows = False
 if 'Windows' == platform.system():
@@ -176,6 +185,7 @@ def train(data_dir, model_dir, args):
     model = model_module(
         num_classes=num_classes
     ).to(device)
+    #.to(device)
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
