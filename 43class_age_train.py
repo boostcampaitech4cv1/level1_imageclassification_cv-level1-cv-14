@@ -170,6 +170,9 @@ def train(data_dir, model_dir, args):
 
     # -- model
     model_module = getattr(import_module("model"), args.model)  # default: BaseModel
+    print(model_module)
+    print(import_module("model"))
+    print(args.model)
     model = model_module(
         num_classes=num_classes
     ).to(device)
