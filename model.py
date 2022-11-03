@@ -17,6 +17,8 @@ from torchvision.models import efficientnet_b7
 
 from timm import create_model
 
+from facenet_pytorch import InceptionResnetV1
+
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -335,3 +337,16 @@ class EfficientNetV2L(nn.Module):
 #    def forward(self,x):
 #        out = self.vit(x)
 #        return out
+
+
+class InceptionResnet(nn.Module):
+    def __init__(self, num_classes):
+        super(InceptionResnet, self).__init__()
+        self.resnet = InceptionResnetV1(
+            classify=True,
+            pretrained='vggface2',
+            num_classes=num_classes
+        )
+    def forward(self,x):
+        out = self.resnet(x)
+        return out

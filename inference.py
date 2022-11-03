@@ -73,6 +73,9 @@ def inference(data_dir, model_dir, output_dir, args):
         age_vit.eval()
         age_senet = load_model('./model/43_class_senet', 43, device, 'SENet154').to(device)
         age_senet.eval()
+        age_facenet = load_model('./model/43_facenet', 43, device, 'InceptionResnet').to(device)
+        age_facenet.eval()
+        facenet_resize = Resize([112, 112])
 
     img_root = os.path.join(data_dir, 'images')
     info_path = os.path.join(data_dir, 'info.csv')
@@ -117,6 +120,7 @@ def inference(data_dir, model_dir, output_dir, args):
                     if args.ensemble:
                         age_pred = age_vit(vit_resize(images))
                         age_pred += age_senet(senet_resize(images))
+                        age_pred += age_facenet(facenet_resize(images))
                     else:
                         age_pred = age_vit(images)
                     age_pred = age_pred.argmax(dim=-1)
